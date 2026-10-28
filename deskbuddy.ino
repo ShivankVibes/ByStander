@@ -14,8 +14,47 @@
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <base64.h>
+#include <time.h>
 
 Preferences preferences;
+
+// ====================================================
+// 31x31 QR Code Bitmap: Creator Bio (https://shivankvibes.github.io/ByStander/)
+// ====================================================
+const int QR_SIZE = 31;
+const unsigned char qrBioBitmap[] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00,
+  0x7F, 0x41, 0xF1, 0xFC,
+  0x41, 0x4C, 0x59, 0x04,
+  0x5D, 0x64, 0xFD, 0x74,
+  0x5D, 0x77, 0xD1, 0x74,
+  0x5D, 0x37, 0xC1, 0x74,
+  0x41, 0x72, 0x0D, 0x04,
+  0x7F, 0x55, 0x55, 0xFC,
+  0x00, 0x18, 0xAC, 0x00,
+  0x67, 0x14, 0x64, 0xBC,
+  0x44, 0x43, 0xF5, 0xFC,
+  0x2D, 0xF1, 0xA7, 0xC4,
+  0x64, 0x65, 0x69, 0x2C,
+  0x51, 0x88, 0x6A, 0x88,
+  0x52, 0x96, 0x41, 0xFC,
+  0x3D, 0x5E, 0xB4, 0x34,
+  0x4E, 0xC8, 0xF6, 0xCC,
+  0x7D, 0x55, 0xEE, 0x08,
+  0x56, 0xF1, 0xD1, 0xEC,
+  0x0F, 0x23, 0xC2, 0x94,
+  0x10, 0x55, 0x68, 0xCC,
+  0x6B, 0xAB, 0x3F, 0xE4,
+  0x00, 0x55, 0x7C, 0x44,
+  0x7F, 0x1F, 0x9D, 0x74,
+  0x41, 0x6A, 0x2C, 0x44,
+  0x5D, 0x56, 0xAF, 0xE4,
+  0x5D, 0x23, 0xB6, 0x04,
+  0x5D, 0x20, 0xA4, 0x3C,
+  0x41, 0x45, 0x35, 0x6C,
+  0x7F, 0x5B, 0xA5, 0x48,
+  0x00, 0x00, 0x00, 0x00
+};
 
 // ====================================================
 // Dual OLED Displays Configuration (128x32 each)
@@ -114,20 +153,25 @@ bool spotifyPlaying = true;
 enum BotMode {
   MODE_COMPANION = 0,   // Animated Dual Eyes (0)
   MODE_POMODORO = 1,    // Focus Timer (1)
-  MODE_OLLIE = 2,       // Sphero Ollie BLE (2)
+  MODE_WHEELS = 2,      // Wheels (Ollie) Controller (2)
   MODE_REFLEX_GAME = 3, // Reflex Minigame (3)
   MODE_SPOTIFY = 4,     // Spotify Controller (4)
   MODE_SYSTEM_INFO = 5, // System Telemetry (5)
-  MODE_MENU = 6         // Main Menu (6)
+  MODE_MENU = 6,        // Main Menu (6)
+  MODE_CLOCK = 7,       // Real-Time Clock (7)
+  MODE_BIO = 8          // Creator Bio QR Code (8)
 };
+
+#define MODE_OLLIE MODE_WHEELS // Legacy alias
 
 BotMode currentMode = MODE_COMPANION;
 
-const int TOTAL_MENU_ITEMS = 6;
+const int TOTAL_MENU_ITEMS = 8;
 int selectedMenuItem = 0;
 const char *menuNames[TOTAL_MENU_ITEMS] = {
-    "1. Dual Eyes",       "2. Focus Pomodoro", "3. Ollie Battery",
-    "4. Reflex Reaction", "5. Spotify Player", "6. System Status"};
+    "1. Dual Eyes",       "2. Focus Pomodoro", "3. Wheels (Robot)",
+    "4. Reflex Reaction", "5. Spotify Player", "6. System Status",
+    "7. Real-Time Clock", "8. Creator Bio QR"};
 
 // ====================================================
 // Companion Eyes Expressions
@@ -460,6 +504,8 @@ void drawOllieRight();
 void drawReflexGameRight();
 void drawSpotifyRight();
 void drawSystemInfoRight();
+void drawClockRight();
+void drawBioRight();
 
 void handleKeypad();
 void processKeyEvent(char key);
@@ -583,6 +629,7 @@ void setup() {
       soundVictory();
       refreshSpotifyToken();
       pollSpotifyCurrentlyPlaying();
+      configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST
     } else {
       Serial.println(F("[WiFi] Router connection timed out. ByStander-WiFi "
                        "Hotspot is on 192.168.4.1"));
@@ -1236,7 +1283,7 @@ void processKeyEvent(char key) {
     mqttClient.publish(mqttTopicStatus, msg.c_str());
   }
 
-  // 1. GLOBAL SYSTEM HOTKEYS (A, B, C, D)
+  // 1. GLOBAL SYSTEM HOTKEYS (A, B, C, D, 9, 7, 0)
   if (key == 'A') {
     // Mode A: Companion Eyes
     switchMode(MODE_COMPANION);
@@ -1257,6 +1304,27 @@ void processKeyEvent(char key) {
     switchMode(MODE_SYSTEM_INFO);
     soundChirp();
     return;
+  } else if (key == '9') {
+    // 9 --> Wheels (Ollie Robot)
+    if (currentMode != MODE_WHEELS) {
+      switchMode(MODE_WHEELS);
+      soundVictory();
+      return;
+    }
+  } else if (key == '7') {
+    // 7 --> Real-Time Clock
+    if (currentMode != MODE_CLOCK) {
+      switchMode(MODE_CLOCK);
+      soundChirp();
+      return;
+    }
+  } else if (key == '0') {
+    // 0 --> Creator Bio QR Code
+    if (currentMode != MODE_BIO) {
+      switchMode(MODE_BIO);
+      soundHappy();
+      return;
+    }
   }
 
   // 2. CONTEXTUAL MODE HANDLERS
@@ -1265,16 +1333,6 @@ void processKeyEvent(char key) {
     if (key == '#' || key == '5') {
       soundChirp();
       switchMode(MODE_MENU);
-    } else if (key == '0') {
-      soundHappy();
-      switch (currentExpr) {
-      case EXPR_NEUTRAL: currentExpr = EXPR_HAPPY; break;
-      case EXPR_HAPPY: currentExpr = EXPR_WINK; break;
-      case EXPR_WINK: currentExpr = EXPR_SURPRISED; break;
-      case EXPR_SURPRISED: currentExpr = EXPR_SLEEPY; break;
-      default: currentExpr = EXPR_NEUTRAL; break;
-      }
-      lastEyeShiftTime = millis() + 4000;
     } else if (key == '2') {
       currentExpr = EXPR_SURPRISED;
       soundPoke();
@@ -1310,21 +1368,23 @@ void processKeyEvent(char key) {
       switch (selectedMenuItem) {
       case 0: switchMode(MODE_COMPANION); break;
       case 1: switchMode(MODE_POMODORO); break;
-      case 2: switchMode(MODE_OLLIE); break;
+      case 2: switchMode(MODE_WHEELS); break;
       case 3: reflexState = REFLEX_WAIT_START; switchMode(MODE_REFLEX_GAME); break;
       case 4: switchMode(MODE_SPOTIFY); break;
       case 5: switchMode(MODE_SYSTEM_INFO); break;
+      case 6: switchMode(MODE_CLOCK); break;
+      case 7: switchMode(MODE_BIO); break;
       }
-    } else if (key == '*' || key == '0') {
+    } else if (key == '*') {
       soundChirp();
       switchMode(MODE_COMPANION);
-    } else if (key >= '1' && key <= '6') {
+    } else if (key >= '1' && key <= '8') {
       selectedMenuItem = key - '1';
       processKeyEvent('#');
     }
     break;
 
-  case MODE_OLLIE:
+  case MODE_WHEELS:
     // Physical 2-Axis Precision Pilot via Keypad!
     if (key == '2') {
       // Forward 15 cm
@@ -1353,18 +1413,20 @@ void processKeyEvent(char key) {
                     ollieColorRGB[ollieColorIndex][1], 
                     ollieColorRGB[ollieColorIndex][2]);
       soundHappy();
-    } else if (key == '7') {
-      // Toggle Tail Light
-      static bool tailLight = true;
-      tailLight = !tailLight;
-      setOllieBackLed(tailLight ? 255 : 0);
-      soundChirp();
     } else if (key == '9') {
       // Boost Forward 35 cm!
       rollOllieDistanceCm(35, 0);
       soundVictory();
     } else if (key == '*' || key == '#') {
       switchMode(MODE_MENU);
+      soundChirp();
+    }
+    break;
+
+  case MODE_CLOCK:
+  case MODE_BIO:
+    if (key == '*' || key == '#' || key == 'A' || key == '5') {
+      switchMode(MODE_COMPANION);
       soundChirp();
     }
     break;
@@ -1605,6 +1667,7 @@ void updateAsyncState() {
       Serial.printf("[WiFi] Reconnected! IP: %s\n", espIPAddress.c_str());
       refreshSpotifyToken();
       pollSpotifyCurrentlyPlaying();
+      configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST
     }
   } else {
     wifiConnected = false;
@@ -1775,7 +1838,7 @@ void drawRightScreenPanel() {
   case MODE_POMODORO:
     drawPomodoroRight();
     break;
-  case MODE_OLLIE:
+  case MODE_WHEELS:
     drawOllieRight();
     break;
   case MODE_REFLEX_GAME:
@@ -1786,6 +1849,12 @@ void drawRightScreenPanel() {
     break;
   case MODE_SYSTEM_INFO:
     drawSystemInfoRight();
+    break;
+  case MODE_CLOCK:
+    drawClockRight();
+    break;
+  case MODE_BIO:
+    drawBioRight();
     break;
   default:
     break;
@@ -1840,13 +1909,13 @@ void drawPomodoroRight() {
 }
 
 // ====================================================
-// RIGHT SCREEN: OLLIE BATTERY & CONTROLLER
+// RIGHT SCREEN: WHEELS (OLLIE) BATTERY & CONTROLLER
 // ====================================================
 void drawOllieRight() {
   displayR.setTextSize(1);
   displayR.setTextColor(SSD1306_WHITE);
   displayR.setCursor(0, 0);
-  displayR.print(F("OLLIE: 2B-4FCD"));
+  displayR.print(F("WHEELS: 2B-4FCD"));
 
   displayR.drawRect(0, 11, 48, 9, SSD1306_WHITE);
   displayR.fillRect(48, 13, 2, 5, SSD1306_WHITE);
@@ -1989,6 +2058,58 @@ void drawSystemInfoRight() {
   displayR.print(ESP.getFreeHeap() / 1024);
   displayR.print(F("K "));
   displayR.print(spotifyApiActive ? F("Spot:API") : F("Spot:Off"));
+}
+
+// ====================================================
+// RIGHT SCREEN: REAL-TIME CLOCK (NTP Synced IST)
+// ====================================================
+void drawClockRight() {
+  struct tm timeinfo;
+  displayR.setTextSize(1);
+  displayR.setTextColor(SSD1306_WHITE);
+
+  if (!getLocalTime(&timeinfo, 50)) {
+    displayR.setCursor(0, 2);
+    displayR.print(F("REAL-TIME CLOCK"));
+    displayR.setCursor(0, 13);
+    displayR.print(F("Syncing NTP Time..."));
+    displayR.setCursor(0, 23);
+    displayR.print(wifiConnected ? F("Connecting NTP...") : F("WiFi Offline"));
+    return;
+  }
+
+  // Header Line: Day of week and Date
+  char dateStr[24];
+  strftime(dateStr, sizeof(dateStr), "%a, %d %b %Y", &timeinfo);
+  displayR.setCursor(16, 2);
+  displayR.print(dateStr);
+
+  // Time Line: Big digital clock HH:MM:SS
+  char timeStr[16];
+  strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
+  displayR.setTextSize(2);
+  displayR.setCursor(16, 15);
+  displayR.print(timeStr);
+}
+
+// ====================================================
+// RIGHT SCREEN: CREATOR BIO & QR CODE
+// ====================================================
+void drawBioRight() {
+  // Quiet zone background for QR code (33x32)
+  displayR.fillRect(0, 0, 33, 32, SSD1306_WHITE);
+  // High-contrast QR bitmap (31x31)
+  displayR.drawBitmap(1, 1, qrBioBitmap, 31, 31, SSD1306_BLACK, SSD1306_WHITE);
+
+  // Bio info text on the right
+  displayR.setTextSize(1);
+  displayR.setTextColor(SSD1306_WHITE);
+  displayR.setCursor(37, 2);
+  displayR.print(F("CREATOR BIO"));
+  displayR.setCursor(37, 13);
+  displayR.print(F("ByStander Team"));
+  displayR.setCursor(37, 23);
+  displayR.print(F("Scan to view >"));
 }
 
 // ====================================================

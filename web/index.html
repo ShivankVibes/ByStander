@@ -33,7 +33,7 @@
       </div>
       <div class="status-pill status-ollie" id="status-ollie">
         <span class="status-dot pulse-cyan"></span>
-        <span class="status-label">Ollie (2B-4FCD): 88%</span>
+        <span class="status-label">Wheels (2B-4FCD): 88%</span>
       </div>
       <div class="status-pill status-cloud" id="status-cloud" title="24/7 Cloud MQTT Link">
         <span class="status-dot" id="cloud-dot"></span>
@@ -138,17 +138,17 @@
             </button>
 
             <!-- Row 3 -->
-            <button class="kp-key kp-action" data-key="7">
+            <button class="kp-key kp-action" data-key="7" title="Real-Time Clock">
               <span class="kp-char">7</span>
-              <span class="kp-sub">Tail</span>
+              <span class="kp-sub">Time</span>
             </button>
             <button class="kp-key kp-nav" data-key="8">
               <span class="kp-char">8</span>
               <span class="kp-sub">▼ Rev</span>
             </button>
-            <button class="kp-key kp-action" data-key="9">
+            <button class="kp-key kp-action" data-key="9" title="Wheels Robot Controller">
               <span class="kp-char">9</span>
-              <span class="kp-sub">Boost</span>
+              <span class="kp-sub">Wheels</span>
             </button>
             <button class="kp-key kp-hotkey" data-key="C">
               <span class="kp-char">C</span>
@@ -160,9 +160,9 @@
               <span class="kp-char">*</span>
               <span class="kp-sub">Back</span>
             </button>
-            <button class="kp-key kp-num" data-key="0">
+            <button class="kp-key kp-num" data-key="0" title="Creator Bio QR Code">
               <span class="kp-char">0</span>
-              <span class="kp-sub">Happy</span>
+              <span class="kp-sub">Bio QR</span>
             </button>
             <button class="kp-key kp-spec" data-key="#">
               <span class="kp-char">#</span>
@@ -239,13 +239,13 @@
         </div>
       </div>
 
-      <!-- TAB 2: SPHERO OLLIE BATTERY & CONTROLS -->
-      <div class="feature-card ollie-card">
+      <!-- TAB 2: WHEELS (SPHERO OLLIE) BATTERY & CONTROLS -->
+      <div class="feature-card ollie-card" id="card-ollie">
         <div class="feature-header">
           <div class="ollie-brand">
             <span class="feature-icon">🏎️</span>
             <div>
-              <h3>Sphero Ollie BLE</h3>
+              <h3>Wheels Robot Controller (Ollie BLE)</h3>
               <p class="sub">Device ID: <code>2B-4FCD</code> • MAC: <code>ea:a4:5f:42:4f:cd</code></p>
             </div>
           </div>
@@ -546,6 +546,37 @@
               </div>
             </div>
           </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Creator Bio Modal (Key 0 / Web QR) -->
+  <div class="modal-backdrop" id="modal-bio">
+    <div class="modal-dialog" style="max-width: 460px; text-align: center;">
+      <div class="modal-header">
+        <div class="card-title-group">
+          <span class="card-icon">👨‍💻</span>
+          <h3>Creators & Project Bio</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-bio-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem 1rem; align-items: center;">
+        <div style="display: inline-block; background: white; padding: 12px; border-radius: 12px; margin-bottom: 0.8rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://shivankvibes.github.io/ByStander/" alt="Creator Bio QR Code" width="160" height="160" style="display: block; border-radius: 6px;">
+        </div>
+        <h4 style="color: var(--accent-cyan); margin-bottom: 0.4rem; font-size: 1.25rem;">ByStander (DeskBuddy)</h4>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5; margin-bottom: 1.2rem;">
+          Created with passion by <strong>Shivank & Team</strong>.<br>
+          An autonomous IoT desktop companion, Wheels robot pilot, Spotify jukebox, and focus hub powered by ESP32.
+        </p>
+        <div style="display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;">
+          <a href="https://github.com/ShivankVibes/ByStander" target="_blank" rel="noopener" class="btn-action btn-pomo-primary" style="text-decoration: none; padding: 0.6rem 1.2rem;">
+            ⭐ GitHub Repo
+          </a>
+          <a href="https://shivankvibes.github.io/ByStander/" target="_blank" rel="noopener" class="btn-action" style="text-decoration: none; background: rgba(255,255,255,0.1); padding: 0.6rem 1.2rem;">
+            🌐 Live Dashboard
+          </a>
         </div>
       </div>
     </div>

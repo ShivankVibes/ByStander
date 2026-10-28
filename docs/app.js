@@ -102,19 +102,24 @@ const synth = new SoundSynth();
 const MODES = {
   EYES: 0,
   POMODORO: 1,
+  WHEELS: 2,
   OLLIE: 2,
   REFLEX: 3,
   SPOTIFY: 4,
-  SYSINFO: 5
+  SYSINFO: 5,
+  CLOCK: 7,
+  BIO: 8
 };
 
 const MENU_ITEMS = [
   "Companion Eyes",
   "Focus Pomodoro",
-  "Ollie 2B-4FCD",
+  "Wheels (Robot)",
   "Reflex Speed Test",
   "Spotify Player",
-  "System Status"
+  "System Status",
+  "Real-Time Clock",
+  "Creator Bio QR"
 ];
 
 const state = {
@@ -585,12 +590,39 @@ function handleKeyAction(key) {
     if (swatch) swatch.click();
     return;
   }
+  if (key === '7') {
+    // 7 --> Real-Time Clock
+    state.currentMode = MODES.CLOCK;
+    updateModeBadge();
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    showToast(`🕒 Real Time: ${timeStr} (${dateStr})`);
+    speak(`Current time is ${timeStr}`);
+    return;
+  }
   if (key === '9') {
-    rollOllieCm(35, 0);
+    // 9 --> Wheels Robot Controller (Ollie)
+    state.currentMode = MODES.WHEELS;
+    updateModeBadge();
+    const card = document.getElementById('card-ollie');
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.style.boxShadow = '0 0 25px rgba(0, 245, 255, 0.5)';
+      setTimeout(() => { card.style.boxShadow = ''; }, 1200);
+    }
+    showToast('🏎️ Wheels Robot Controller active');
     return;
   }
   if (key === '0') {
-    setMood('happy');
+    // 0 --> Creator Bio QR Code
+    state.currentMode = MODES.BIO;
+    updateModeBadge();
+    const modal = document.getElementById('modal-bio');
+    if (modal) {
+      modal.classList.add('open');
+    }
+    showToast('👨‍💻 Creator Bio & QR Code opened');
     return;
   }
   if (key === '#') {
@@ -1290,6 +1322,21 @@ modalSettings.addEventListener('click', (e) => {
     modalSettings.classList.remove('open');
   }
 });
+
+// Creator Bio Modal Handlers
+const modalBio = document.getElementById('modal-bio');
+const btnCloseBio = document.getElementById('btn-close-bio-modal');
+if (btnCloseBio && modalBio) {
+  btnCloseBio.addEventListener('click', () => {
+    synth.btnClick();
+    modalBio.classList.remove('open');
+  });
+  modalBio.addEventListener('click', (e) => {
+    if (e.target === modalBio) {
+      modalBio.classList.remove('open');
+    }
+  });
+}
 
 async function connectToEsp(targetIp) {
   let ip = (targetIp || 'http://192.168.4.1').trim();
