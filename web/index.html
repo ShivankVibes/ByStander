@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeskBot 🤖 | Intelligent Desktop Companion Dashboard</title>
+  <meta name="description" content="Next-gen interactive web dashboard for DeskBot: Dual-OLED companion simulator, Pomodoro focus timer, Sphero Ollie BLE battery monitor, Spotify player, and reflex minigames.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- Glowing Ambient Mesh Background -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Header & Top Navigation -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="bot-avatar-badge">🤖</div>
+      <div class="brand-text">
+        <h1 class="brand-title">DeskBot <span class="version-tag">v2.0</span></h1>
+        <p class="brand-subtitle">ESP32 Dual-OLED Companion & Control Center</p>
+      </div>
+    </div>
+
+    <div class="header-status-group">
+      <div class="status-pill status-online" id="status-esp32">
+        <span class="status-dot pulse"></span>
+        <span class="status-label">ESP32: Connected</span>
+      </div>
+      <div class="status-pill status-ollie" id="status-ollie">
+        <span class="status-dot pulse-cyan"></span>
+        <span class="status-label">Ollie (2B-4FCD): 88%</span>
+      </div>
+      <div class="status-pill status-cloud" id="status-cloud" title="24/7 Cloud MQTT Link">
+        <span class="status-dot" id="cloud-dot"></span>
+        <span class="status-label" id="cloud-status-text">Cloud: Linking...</span>
+      </div>
+      <button class="btn-voice-toggle" id="btn-voice-toggle" title="DeskBot Voice Assistant (Press 'V')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span>Voice Assistant</span>
+      </button>
+      <button class="btn-wifi-config" id="btn-open-settings" title="Configure ESP32 WiFi & Spotify API">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+        <span>WiFi & Spotify</span>
+      </button>
+      <button class="btn-usb-connect" id="btn-webserial" title="Connect directly to ESP32 over USB WebSerial">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>Sync USB</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="dashboard-grid">
+    <!-- LEFT COLUMN: HARDWARE TWIN & DUAL OLED SIMULATOR -->
+    <section class="card hardware-twin-card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <span class="card-icon">⚡</span>
+          <h2>Digital Twin & Dual-OLED Simulator</h2>
+        </div>
+        <div class="badge-mode" id="current-mode-badge">COMPANION EYE MODE</div>
+      </div>
+
+      <!-- Realistic ESP32 Device Chasis -->
+      <div class="deskbot-chassis">
+        <div class="chassis-glow"></div>
+        <div class="chassis-branding">DESKBOT 2.0 // ESP32-WROOM</div>
+
+        <!-- The Two OLED Displays (Side-by-Side 256x32) -->
+        <div class="dual-screen-enclosure">
+          <!-- Left Display (Left Eye) -->
+          <div class="screen-frame left-frame">
+            <div class="oled-glass">
+              <canvas id="oled-left" width="128" height="32" class="pixel-canvas"></canvas>
+            </div>
+            <div class="screen-label">LEFT OLED (0x3C • Wire)</div>
+          </div>
+
+          <!-- Right Display (Right Eye / Active Panel) -->
+          <div class="screen-frame right-frame">
+            <div class="oled-glass">
+              <canvas id="oled-right" width="128" height="32" class="pixel-canvas"></canvas>
+            </div>
+            <div class="screen-label">RIGHT OLED (0x3C • Wire1)</div>
+          </div>
+        </div>
+
+        <!-- Hardware Tactile Navigation Buttons (Clickable or Key: 1, 2, 3) -->
+        <div class="chassis-controls">
+          <div class="btn-hardware-wrapper">
+            <button class="btn-hardware" id="hw-btn-1" data-key="1">
+              <span class="btn-cap"></span>
+              <span class="btn-led"></span>
+            </button>
+            <span class="btn-tag">B1 (GPIO 32)<br><b>MENU / NEXT</b></span>
+          </div>
+
+          <div class="btn-hardware-wrapper">
+            <button class="btn-hardware btn-primary-hw" id="hw-btn-2" data-key="2">
+              <span class="btn-cap"></span>
+              <span class="btn-led led-cyan"></span>
+            </button>
+            <span class="btn-tag">B2 (GPIO 33)<br><b>SELECT / OK</b></span>
+          </div>
+
+          <div class="btn-hardware-wrapper">
+            <button class="btn-hardware" id="hw-btn-3" data-key="3">
+              <span class="btn-cap"></span>
+              <span class="btn-led"></span>
+            </button>
+            <span class="btn-tag">B3 (GPIO 27)<br><b>BACK / MOOD</b></span>
+          </div>
+        </div>
+
+        <div class="keyboard-hints">
+          <span>⌨️ Keyboard shortcuts: <kbd>1</kbd> Menu/Next, <kbd>2</kbd> Select, <kbd>3</kbd> Back/Mood</span>
+        </div>
+      </div>
+
+      <!-- Quick Mood Palette -->
+      <div class="mood-selector">
+        <span class="mood-title">Instant Expressions:</span>
+        <div class="mood-chips">
+          <button class="chip active" data-mood="neutral">Neutral</button>
+          <button class="chip" data-mood="happy">Happy ^ ^</button>
+          <button class="chip" data-mood="look_left">Glance Left</button>
+          <button class="chip" data-mood="look_right">Glance Right</button>
+          <button class="chip" data-mood="surprised">Surprised O O</button>
+          <button class="chip" data-mood="wink">Wink ;-)</button>
+          <button class="chip" data-mood="sleepy">Sleepy zZ</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: APPS & SERVICES DASHBOARD -->
+    <section class="dashboard-features">
+      
+      <!-- TAB 1: SPOTIFY PLAYER WIDGET -->
+      <div class="feature-card spotify-card">
+        <div class="feature-header">
+          <div class="spotify-brand">
+            <svg class="spotify-logo" width="24" height="24" viewBox="0 0 24 24" fill="#1DB954"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.498 17.306c-.216.353-.675.467-1.028.252-2.817-1.722-6.362-2.112-10.539-1.157-.402.093-.804-.158-.897-.56-.092-.403.159-.805.561-.897 4.571-1.045 8.492-.596 11.651 1.334.354.215.468.675.252 1.028zm1.468-3.264c-.272.441-.85.58-1.291.308-3.224-1.982-8.139-2.556-11.954-1.397-.497.151-1.025-.133-1.176-.63-.151-.497.133-1.026.63-1.177 4.364-1.325 9.774-.683 13.483 1.599.441.272.58.85.308 1.297zm.126-3.414c-3.864-2.295-10.245-2.507-13.928-1.388-.592.179-1.22-.162-1.4-.755-.179-.593.163-1.22.755-1.399 4.237-1.286 11.285-1.038 15.733 1.603.533.316.708 1.01.392 1.543-.316.533-1.01.708-1.552.396z"/></svg>
+            <h3>Spotify Now Playing</h3>
+          </div>
+          <span class="live-tag">LIVE SYNC</span>
+        </div>
+
+        <div class="spotify-body">
+          <div class="album-art-wrap">
+            <div class="album-art" id="album-cover">
+              <div class="disc-spin" id="vinyl-disc"></div>
+              <span class="album-emoji">🎵</span>
+            </div>
+          </div>
+
+          <div class="track-meta">
+            <h4 class="track-title" id="web-track-title">Starboy</h4>
+            <p class="track-artist" id="web-track-artist">The Weeknd ft. Daft Punk</p>
+
+            <div class="progress-wrap">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="web-track-progress" style="width: 38%;"></div>
+              </div>
+              <div class="time-readout">
+                <span id="time-current">01:28</span>
+                <span id="time-total">03:50</span>
+              </div>
+            </div>
+
+            <div class="playback-controls">
+              <button class="btn-ctrl" id="btn-prev" title="Previous Track">⏮</button>
+              <button class="btn-ctrl btn-play-pause" id="btn-play" title="Play/Pause">⏸</button>
+              <button class="btn-ctrl" id="btn-next" title="Next Track">⏭</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: SPHERO OLLIE BATTERY & CONTROLS -->
+      <div class="feature-card ollie-card">
+        <div class="feature-header">
+          <div class="ollie-brand">
+            <span class="feature-icon">🏎️</span>
+            <div>
+              <h3>Sphero Ollie BLE</h3>
+              <p class="sub">Device ID: <code>2B-4FCD</code> • MAC: <code>ea:a4:5f:42:4f:cd</code></p>
+            </div>
+          </div>
+          <span class="badge-ble connected" id="ollie-ble-status">LINKED</span>
+        </div>
+
+        <div class="ollie-body">
+          <div class="battery-meter-container">
+            <div class="battery-visual">
+              <div class="battery-outline">
+                <div class="battery-fluid" id="ollie-fluid" style="width: 88%;"></div>
+              </div>
+              <span class="battery-percent-text" id="ollie-pct-label">88%</span>
+            </div>
+            <div class="battery-sub-stats">
+              <div class="stat-pair"><span>Voltage:</span> <b>3.92V</b></div>
+              <div class="stat-pair"><span>State:</span> <b class="healthy">Optimal</b></div>
+              <div class="stat-pair"><span>Signal:</span> <b>-64 dBm</b></div>
+            </div>
+          </div>
+
+          <!-- Color Customizer -->
+          <div class="ollie-lighting">
+            <span class="opt-label">Underglow LED:</span>
+            <div class="color-palette">
+              <button class="color-swatch swatch-cyan selected" data-color="Cyan" data-hex="#00e5ff" title="Cyan"></button>
+              <button class="color-swatch swatch-purple" data-color="Purple" data-hex="#b388ff" title="Purple"></button>
+              <button class="color-swatch swatch-green" data-color="Green" data-hex="#00e676" title="Green"></button>
+              <button class="color-swatch swatch-red" data-color="Red" data-hex="#ff5252" title="Red"></button>
+              <button class="color-swatch swatch-blue" data-color="Blue" data-hex="#448aff" title="Blue"></button>
+            </div>
+          </div>
+
+          <!-- Interactive 2-Axis Joystick & Precision Distance Controller -->
+          <div class="ollie-drive-system">
+            <div class="drive-system-header">
+              <span class="opt-label">2-Axis Wireless Pilot:</span>
+              <span class="pilot-status-hint">Drag joystick or use precision distance</span>
+            </div>
+
+            <div class="drive-system-layout">
+              <!-- Virtual 2-Axis Joystick -->
+              <div class="joystick-card">
+                <div class="joystick-base" id="ollie-joystick-base" title="Drag to steer and drive Ollie in real-time!">
+                  <div class="joystick-crosshair-v"></div>
+                  <div class="joystick-crosshair-h"></div>
+                  <div class="joystick-ring-guide"></div>
+                  <div class="joystick-cardinal c-n">N</div>
+                  <div class="joystick-cardinal c-s">S</div>
+                  <div class="joystick-cardinal c-w">W</div>
+                  <div class="joystick-cardinal c-e">E</div>
+                  <div class="joystick-knob" id="ollie-joystick-knob">
+                    <span class="knob-icon">🏎️</span>
+                  </div>
+                </div>
+                <div class="joystick-readout">
+                  <div class="readout-item"><span class="r-label">Heading:</span> <b id="joy-heading-val">0° (Idle)</b></div>
+                  <div class="readout-item"><span class="r-label">Throttle:</span> <b id="joy-speed-val">0%</b></div>
+                </div>
+              </div>
+
+              <!-- Precision Distance (in cm) & Quick Tricks -->
+              <div class="precision-drive-card">
+                <div class="cm-input-block">
+                  <label for="ollie-cm-val" class="input-title">Voice & Button Distance (cm):</label>
+                  <div class="cm-stepper-wrap">
+                    <button class="btn-step" id="btn-cm-minus">-</button>
+                    <input type="number" id="ollie-cm-val" min="5" max="200" step="5" value="20" class="cm-number-input" />
+                    <span class="cm-suffix">cm</span>
+                    <button class="btn-step" id="btn-cm-plus">+</button>
+                  </div>
+                  <div class="quick-cm-chips">
+                    <button class="cm-chip" data-cm="10">10 cm</button>
+                    <button class="cm-chip active" data-cm="20">20 cm</button>
+                    <button class="cm-chip" data-cm="50">50 cm</button>
+                    <button class="cm-chip" data-cm="100">100 cm</button>
+                  </div>
+                </div>
+
+                <div class="precision-actions">
+                  <button class="btn-precision-drive btn-fwd" id="btn-drive-fwd">
+                    <span>▲ Roll Forward</span>
+                    <small id="lbl-fwd-cm">20 cm</small>
+                  </button>
+                  <button class="btn-precision-drive btn-back" id="btn-drive-back">
+                    <span>▼ Roll Backward</span>
+                    <small id="lbl-back-cm">20 cm</small>
+                  </button>
+                </div>
+
+                <div class="trick-actions">
+                  <button class="btn-trick-spin" id="btn-ollie-spin">
+                    <span>🔄 360° Spin Trick</span>
+                  </button>
+                  <button class="btn-trick-brake" id="btn-ollie-brake">
+                    <span>🛑 Brake</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: FOCUS POMODORO TIMER -->
+      <div class="feature-card pomodoro-card">
+        <div class="feature-header">
+          <div class="card-title-group">
+            <span class="feature-icon">🍅</span>
+            <h3>Focus Pomodoro</h3>
+          </div>
+          <div class="pomo-preset-pills">
+            <button class="pomo-btn active" data-time="1500">25m Work</button>
+            <button class="pomo-btn" data-time="2700">45m Deep</button>
+            <button class="pomo-btn" data-time="300">5m Break</button>
+          </div>
+        </div>
+
+        <div class="pomodoro-body">
+          <div class="circular-timer-wrap">
+            <svg class="ring-svg" width="120" height="120">
+              <circle class="ring-bg" cx="60" cy="60" r="50"></circle>
+              <circle class="ring-fill" id="pomo-ring" cx="60" cy="60" r="50"></circle>
+            </svg>
+            <div class="timer-center-text">
+              <span class="timer-digits" id="web-timer-display">25:00</span>
+              <span class="timer-mode-sub" id="pomo-status-sub">IN SESSION</span>
+            </div>
+          </div>
+
+          <div class="pomo-action-buttons">
+            <button class="btn-action btn-pomo-primary" id="btn-pomo-toggle">Start Timer</button>
+            <button class="btn-action" id="btn-pomo-reset">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: REFLEX SPEED MINIGAME -->
+      <div class="feature-card reflex-card">
+        <div class="feature-header">
+          <div class="card-title-group">
+            <span class="feature-icon">⚡</span>
+            <h3>Reflex Reaction Lab</h3>
+          </div>
+          <div class="best-score-badge">Personal Best: <b id="best-score-label">198 ms</b></div>
+        </div>
+
+        <div class="reflex-pad-area" id="reflex-pad">
+          <div class="reflex-prompt" id="reflex-msg">CLICK TO TEST REFLEXES</div>
+          <div class="reflex-result-box" id="reflex-score-display"></div>
+        </div>
+      <!-- TAB 5: DESKBOT VOICE ASSISTANT -->
+      <div class="feature-card voice-card" id="voice-assistant-card">
+        <div class="feature-header">
+          <div class="card-title-group">
+            <span class="feature-icon">🎙️</span>
+            <h3>DeskBot Voice Assistant</h3>
+          </div>
+          <div class="voice-status-badge" id="voice-badge">READY (PRESS 'V')</div>
+        </div>
+
+        <div class="voice-body">
+          <div class="voice-orb-row">
+            <button class="voice-orb" id="voice-orb-btn" title="Click to Talk">
+              <div class="voice-orb-ripple" id="voice-ripple"></div>
+              <div class="voice-orb-core">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              </div>
+            </button>
+            <div class="voice-dialogue-area">
+              <div class="voice-transcript-bubble user-bubble" id="voice-user-text">Click the mic or press 'V' to speak...</div>
+              <div class="voice-transcript-bubble bot-bubble" id="voice-bot-reply">"Ready for commands! Try 'play music', 'happy face', 'start timer'..."</div>
+            </div>
+          </div>
+
+          <!-- Instant Command / Voice Dictation Input -->
+          <div class="voice-input-container">
+            <input type="text" id="voice-text-input" class="voice-text-input" placeholder="Type or use keyboard 🎙️: 'move forward 20 cm'..." autocomplete="off">
+            <button id="voice-send-btn" class="btn-voice-send" title="Send Command">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+
+          <!-- Quick command trigger chips -->
+          <div class="voice-chips-container">
+            <button class="v-chip" data-cmd="move forward 20 cm">🏎️ "Move Forward 20 cm"</button>
+            <button class="v-chip" data-cmd="move back 15 cm">🏎️ "Move Back 15 cm"</button>
+            <button class="v-chip" data-cmd="do a 360 spin trick">🔄 "360 Spin Trick"</button>
+            <button class="v-chip" data-cmd="play music">▶ "Play Music"</button>
+            <button class="v-chip" data-cmd="pause music">⏸ "Pause"</button>
+            <button class="v-chip" data-cmd="next song">⏭ "Next Track"</button>
+            <button class="v-chip" data-cmd="happy face">😊 "Happy Face"</button>
+            <button class="v-chip" data-cmd="wink">😉 "Wink"</button>
+            <button class="v-chip" data-cmd="start pomodoro">🍅 "25m Focus"</button>
+            <button class="v-chip" data-cmd="ollie battery">🔋 "Ollie Battery"</button>
+            <button class="v-chip" data-cmd="tell me a joke">💡 "Tell a Joke"</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>DeskBot Companion Ecosystem • ESP32 DevKit V1 • 2x I2C SSD1306 (Wire & Wire1) • 3x Buttons (GPIO 32, 33, 27)</p>
+  </footer>
+
+  <!-- Modal: WiFi & Spotify API Configuration -->
+  <div class="modal-backdrop" id="modal-settings">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="card-title-group">
+          <span class="card-icon">⚙️</span>
+          <h3>ESP32 Network & Spotify API Setup</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-settings">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Section 1: Connect DeskBot to WiFi -->
+        <div class="config-section">
+          <h4>📶 Connect DeskBot to WiFi (School / Home / Hotspot)</h4>
+          <p class="config-desc">Save your router or phone hotspot credentials into DeskBot's Flash memory:</p>
+          <div class="form-group">
+            <label for="cfg-wifi-ssid">WiFi Network Name (SSID)</label>
+            <input type="text" id="cfg-wifi-ssid" placeholder="e.g. Airtel_402, School-WiFi, or MyHotspot" class="input-text">
+          </div>
+          <div class="form-group">
+            <label for="cfg-wifi-pass">WiFi Password</label>
+            <input type="password" id="cfg-wifi-pass" placeholder="Enter WiFi Password" class="input-text">
+          </div>
+          <div class="modal-actions" style="margin-top: 0.5rem; justify-content: flex-start;">
+            <button class="btn-action btn-pomo-primary" id="btn-save-wifi">Save & Connect WiFi</button>
+          </div>
+          <span class="ip-status-msg" id="wifi-setup-feedback"></span>
+        </div>
+
+        <!-- Section 2: ESP32 Live IP Connection -->
+        <div class="config-section">
+          <h4>📡 Connect to ESP32 over WiFi</h4>
+          <p class="config-desc">Enter your ESP32's local IP address (shown on the Right OLED under <b>System Status</b>, e.g. <code>192.168.1.55</code>) to control your physical DeskBot wirelessly:</p>
+          <div class="input-row">
+            <input type="text" id="cfg-esp-ip" placeholder="http://192.168.1.55" class="input-text">
+            <button class="btn-action btn-pomo-primary" id="btn-connect-ip">Connect Live</button>
+          </div>
+          <span class="ip-status-msg" id="ip-connection-feedback">Status: In standalone simulation mode</span>
+        </div>
+
+        <!-- Section 2: Connect Any Spotify Account -->
+        <div class="config-section">
+          <h4>🎵 Connect Any Spotify Account</h4>
+          <p class="config-desc">Connect any personal Spotify account to your DeskBot in 2 simple steps:</p>
+          
+          <div class="auth-step-box">
+            <div class="auth-step-header">
+              <span class="step-num">1</span>
+              <span>Authorize DeskBot on your Spotify account:</span>
+            </div>
+            <a href="https://accounts.spotify.com/authorize?client_id=001f2f27609349db91cea22353df81ce&response_type=code&redirect_uri=https://example.com/callback&scope=user-read-playback-state%20user-modify-playback-state%20user-read-currently-playing" target="_blank" rel="noopener" class="btn-spotify-connect" id="btn-spotify-auth-link">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.018.6-1.141 4.38-1.38 9.781-.72 13.439 1.56.421.18.6.84.302 1.261zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+              <span>Log In & Authorize with Spotify</span>
+            </a>
+          </div>
+
+          <div class="auth-step-box" style="margin-top: 1.1rem;">
+            <div class="auth-step-header">
+              <span class="step-num">2</span>
+              <span>Paste the redirected URL or code below:</span>
+            </div>
+            <div class="input-row">
+              <input type="text" id="cfg-spot-code" placeholder="Paste https://example.com/callback?code=... here" class="input-text">
+              <button class="btn-action btn-pomo-primary" id="btn-submit-spot-code">Link Account</button>
+            </div>
+            <span class="ip-status-msg" id="spotify-auth-feedback"></span>
+          </div>
+
+          <details style="margin-top: 1.4rem; font-size: 0.8rem; color: var(--text-secondary); background: rgba(0,0,0,0.25); padding: 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+            <summary style="cursor: pointer; color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 600;">⚙️ Advanced: Use Custom Spotify Developer App</summary>
+            <div style="margin-top: 0.9rem;">
+              <p style="margin-bottom: 0.8rem; font-size: 0.76rem;">If you have your own App from developer.spotify.com, set your custom Client ID and Secret:</p>
+              <div class="form-group">
+                <label for="cfg-spot-id">Custom Client ID</label>
+                <input type="text" id="cfg-spot-id" placeholder="Paste custom Client ID" class="input-text">
+              </div>
+
+              <div class="form-group">
+                <label for="cfg-spot-secret">Custom Client Secret</label>
+                <input type="password" id="cfg-spot-secret" placeholder="••••••••••••••••••••••••••••••••" class="input-text">
+              </div>
+
+              <div class="form-group">
+                <label for="cfg-spot-refresh">Direct Refresh Token (Optional)</label>
+                <input type="text" id="cfg-spot-refresh" placeholder="Paste existing refresh_token (optional)" class="input-text">
+              </div>
+
+              <div class="modal-actions">
+                <button class="btn-action btn-pomo-primary" id="btn-save-spotify">Save Custom Keys</button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
