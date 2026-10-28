@@ -663,6 +663,7 @@ void setupWebServer() {
     sendCorsHeader();
     String json = "{";
     json += "\"mode\":" + String(currentMode) + ",";
+    json += "\"key\":\"" + String(lastKeyPressed) + "\",";
     json += "\"mood\":" + String(currentExpr) + ",";
     json +=
         "\"wifi\":{\"connected\":" + String(wifiConnected ? "true" : "false") +
@@ -827,6 +828,17 @@ void setupWebServer() {
     }
 
     server.send(400, "application/json", "{\"error\":\"invalid_action\"}");
+  });
+
+  server.on("/api/key", HTTP_GET, []() {
+    sendCorsHeader();
+    if (server.hasArg("press")) {
+      String k = server.arg("press");
+      if (k.length() > 0) {
+        processKeyEvent(k.charAt(0));
+      }
+    }
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
   });
 
   server.on("/api/button", HTTP_GET, [sendOkResponse]() {
@@ -1218,6 +1230,12 @@ void processKeyEvent(char key) {
   // Audio feedback on every keypress
   soundPoke();
 
+  // Immediately broadcast key event to MQTT for Web UI live animation
+  if (mqttClient.connected()) {
+    String msg = "{\"key\":\"" + String(key) + "\",\"mode\":" + String(currentMode) + "}";
+    mqttClient.publish(mqttTopicStatus, msg.c_str());
+  }
+
   // 1. GLOBAL SYSTEM HOTKEYS (A, B, C, D)
   if (key == 'A') {
     // Mode A: Companion Eyes
@@ -1449,7 +1467,13 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
   Serial.printf("[MQTT] Recv: %s\n", msg);
 
   String action = jsonExtractString(json, "action");
-  if (action == "move_cm") {
+  if (action == "key") {
+    String k = jsonExtractString(json, "key");
+    if (k.length() > 0) {
+      processKeyEvent(k.charAt(0));
+    }
+    return;
+  } else if (action == "move_cm") {
     int dist = jsonExtractLong(json, "distance");
     if (dist <= 0) dist = 20;
     int heading = jsonExtractLong(json, "heading");
@@ -1508,6 +1532,7 @@ void maintainMqtt() {
       lastMqttStatusPublish = now;
       String status = "{";
       status += "\"mode\":" + String(currentMode) + ",";
+      status += "\"key\":\"" + String(lastKeyPressed) + "\",";
       status += "\"ollie\":{\"connected\":" + String(ollieConnected ? "true" : "false") +
                 ",\"battery\":" + String(ollieBatteryPercent) +
                 ",\"color\":\"" + String(ollieColors[ollieColorIndex]) + "\"},";
@@ -1604,6 +1629,7 @@ void renderDisplays() {
     // Left Screen: Companion Eye
     displayL.clearDisplay();
     drawEyeOnDisplay(displayL, true);
+    drawLiveButtonIndicators(displayL);
     displayL.display();
 
     // Right Screen: Eye or Active Feature Panel
@@ -1640,12 +1666,12 @@ void renderDisplays() {
 // GRAPHICS: LIVE BUTTON STATUS INDICATOR (Top-Right)
 // ====================================================
 void drawLiveButtonIndicators(Adafruit_SSD1306 &disp) {
-  if (millis() - lastKeyPressTime < 1800 && lastKeyPressed != ' ') {
-    disp.fillRect(100, 0, 28, 9, SSD1306_WHITE);
+  if (millis() - lastKeyPressTime < 2200 && lastKeyPressed != ' ' && lastKeyPressed != 0) {
+    disp.fillRoundRect(86, 0, 42, 10, 2, SSD1306_WHITE);
     disp.setTextSize(1);
     disp.setTextColor(SSD1306_BLACK);
-    disp.setCursor(102, 1);
-    disp.printf("[%c]", lastKeyPressed);
+    disp.setCursor(89, 1);
+    disp.printf("KEY:[%c]", lastKeyPressed);
     disp.setTextColor(SSD1306_WHITE);
   }
 }

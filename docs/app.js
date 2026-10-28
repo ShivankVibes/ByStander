@@ -489,53 +489,132 @@ function mainLoop() {
 }
 
 // ==========================================================================
-// Hardware Buttons Navigation (Mirrors ESP32 GPIO 32, 33, 27)
+// 4x4 Keypad Matrix Navigation (Mirrors ESP32 Physical & Cloud Keypad)
 // ==========================================================================
-function pressHardwareButton(btnNum) {
+function highlightRemoteKey(key) {
+  key = String(key).toUpperCase();
+  const btn = document.querySelector(`.kp-key[data-key="${key}"]`);
+  if (btn) {
+    btn.classList.add('active');
+    setTimeout(() => btn.classList.remove('active'), 250);
+  }
+  const badge = document.getElementById('last-key-badge');
+  if (badge) {
+    badge.textContent = `KEY: [ ${key} ]`;
+    badge.classList.add('flash');
+    setTimeout(() => badge.classList.remove('flash'), 1200);
+  }
+}
+
+function pressKeypadKey(key) {
+  key = String(key).toUpperCase();
   synth.init();
-  const btnEl = document.getElementById(`hw-btn-${btnNum}`);
-  if (btnEl) {
-    btnEl.classList.add('pressed');
-    setTimeout(() => btnEl.classList.remove('pressed'), 180);
-  }
+  synth.btnClick();
 
-  if (btnNum === 1) {
-    // Button 1: Menu / Next Item
-    synth.btnClick();
-    if (!state.menuActive) {
-      state.menuActive = true;
-      state.menuIndex = state.currentMode;
-    } else {
-      state.menuIndex = (state.menuIndex + 1) % MENU_ITEMS.length;
-    }
+  highlightRemoteKey(key);
+
+  // Dispatch local actions
+  handleKeyAction(key);
+
+  // Forward key command to ESP32 via Cloud MQTT or Local HTTP
+  if (isMqttConnected && mqttClient) {
+    mqttClient.publish(MQTT_TOPIC_CMD, JSON.stringify({ action: "key", key: key }));
+  } else if (espBaseUrl) {
+    fetch(`${espBaseUrl}/api/key?press=${encodeURIComponent(key)}`).catch(() => {});
+  }
+}
+
+function handleKeyAction(key) {
+  key = String(key).toUpperCase();
+
+  // Mode Hotkeys: A, B, C, D
+  if (key === 'A') {
+    state.currentMode = MODES.EYES;
+    state.menuActive = false;
     updateModeBadge();
-  } else if (btnNum === 2) {
-    // Button 2: Select / OK / Action
-    synth.btnSelect();
-    if (state.menuActive) {
-      state.currentMode = state.menuIndex;
-      state.menuActive = false;
-      updateModeBadge();
-    } else {
-      // In-mode action
-      handleModeAction();
-    }
-  } else if (btnNum === 3) {
-    // Button 3: Back / Mood switch
-    synth.btnBack();
-    if (state.menuActive) {
-      state.menuActive = false;
-      updateModeBadge();
-    } else if (state.currentMode !== MODES.EYES) {
-      state.currentMode = MODES.EYES;
-      updateModeBadge();
-    } else {
-      setMood(moods[nextIdx]);
-    }
+    return;
+  }
+  if (key === 'B') {
+    state.currentMode = MODES.POMODORO;
+    state.menuActive = false;
+    updateModeBadge();
+    return;
+  }
+  if (key === 'C') {
+    state.currentMode = MODES.SPOTIFY;
+    state.menuActive = false;
+    updateModeBadge();
+    return;
+  }
+  if (key === 'D') {
+    state.currentMode = MODES.INFO;
+    state.menuActive = false;
+    updateModeBadge();
+    return;
   }
 
-  // Send button press command directly to ESP32
-  fetch(`/api/button?btn=${btnNum}`).catch(() => {});
+  // Ollie Direct Pilot
+  if (key === '2') {
+    rollOllieCm(15, 0);
+    return;
+  }
+  if (key === '8') {
+    rollOllieCm(15, 180);
+    return;
+  }
+  if (key === '4') {
+    rollOllieCm(10, 270);
+    return;
+  }
+  if (key === '6') {
+    rollOllieCm(10, 90);
+    return;
+  }
+  if (key === '5') {
+    sendOllieStop();
+    return;
+  }
+  if (key === '1') {
+    triggerOllieSpin();
+    return;
+  }
+  if (key === '3') {
+    const colors = ['cyan', 'magenta', 'green', 'orange', 'red', 'yellow'];
+    const nextCol = colors[(colors.indexOf(state.ollie.colorName) + 1) % colors.length];
+    const swatch = document.querySelector(`.color-swatch[data-color="${nextCol}"]`);
+    if (swatch) swatch.click();
+    return;
+  }
+  if (key === '9') {
+    rollOllieCm(35, 0);
+    return;
+  }
+  if (key === '0') {
+    setMood('happy');
+    return;
+  }
+  if (key === '#') {
+    if (state.currentMode === MODES.SPOTIFY) toggleSpotifyPlay();
+    else if (state.currentMode === MODES.POMODORO) togglePomodoro();
+    else {
+      state.menuActive = !state.menuActive;
+      updateModeBadge();
+    }
+    return;
+  }
+  if (key === '*') {
+    state.menuActive = false;
+    state.currentMode = MODES.EYES;
+    updateModeBadge();
+    return;
+  }
+}
+
+// Backwards-compatibility for older call sites
+function pressHardwareButton(btnNum) {
+  if (btnNum === 1) pressKeypadKey('4');
+  else if (btnNum === 2) pressKeypadKey('5');
+  else if (btnNum === 3) pressKeypadKey('6');
 }
 
 function handleModeAction() {
@@ -619,6 +698,9 @@ async function syncSpotifyStatus() {
     const res = await fetch(url, { mode: 'cors' });
     if (res.ok) {
       const data = await res.json();
+      if (data.key && data.key !== ' ' && data.key !== '-') {
+        highlightRemoteKey(data.key);
+      }
       state.currentMode = data.mode;
       if (data.spotify) {
         const sp = data.spotify;
@@ -767,6 +849,9 @@ function initMqttBridge() {
       try {
         const data = JSON.parse(payload.toString());
         if (topic === MQTT_TOPIC_STATUS) {
+          if (data.key && data.key !== ' ' && data.key !== '-') {
+            highlightRemoteKey(data.key);
+          }
           if (data.mode !== undefined) {
             state.mode = data.mode;
             updateModeBadge();
@@ -1128,22 +1213,24 @@ function triggerReflexClick() {
 reflexPad.addEventListener('click', triggerReflexClick);
 
 // ==========================================================================
-// Hardware Button Clicks & Keyboard Listeners (<kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd>)
+// 4x4 Keypad Deck Click & Keyboard Shortcuts
 // ==========================================================================
-document.getElementById('hw-btn-1').addEventListener('click', () => pressHardwareButton(1));
-document.getElementById('hw-btn-2').addEventListener('click', () => pressHardwareButton(2));
-document.getElementById('hw-btn-3').addEventListener('click', () => pressHardwareButton(3));
+document.querySelectorAll('.kp-key').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const k = btn.dataset.key;
+    if (k) pressKeypadKey(k);
+  });
+});
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === '1') {
+  // Ignore keypresses if typing in an input box or text area
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  const keyUpper = e.key.toUpperCase();
+  const validKeys = ['1','2','3','4','5','6','7','8','9','0','A','B','C','D','*','#'];
+  if (validKeys.includes(keyUpper)) {
     e.preventDefault();
-    pressHardwareButton(1);
-  } else if (e.key === '2') {
-    e.preventDefault();
-    pressHardwareButton(2);
-  } else if (e.key === '3') {
-    e.preventDefault();
-    pressHardwareButton(3);
+    pressKeypadKey(keyUpper);
   }
 });
 

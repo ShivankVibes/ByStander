@@ -90,35 +90,93 @@
           </div>
         </div>
 
-        <!-- Hardware Tactile Navigation Buttons (Clickable or Key: 1, 2, 3) -->
-        <div class="chassis-controls">
-          <div class="btn-hardware-wrapper">
-            <button class="btn-hardware" id="hw-btn-1" data-key="1">
-              <span class="btn-cap"></span>
-              <span class="btn-led"></span>
-            </button>
-            <span class="btn-tag">B1 (GPIO 32)<br><b>MENU / NEXT</b></span>
+        <!-- Hardware 4x4 Keypad Matrix Controller (Interactive & Live Synced) -->
+        <div class="keypad-deck-card">
+          <div class="keypad-deck-header">
+            <div class="card-title-group">
+              <span class="feature-icon">⌨️</span>
+              <h4>4x4 Keypad Matrix Controller</h4>
+            </div>
+            <div class="keypad-status-badge" id="last-key-badge">KEY: [ - ]</div>
           </div>
 
-          <div class="btn-hardware-wrapper">
-            <button class="btn-hardware btn-primary-hw" id="hw-btn-2" data-key="2">
-              <span class="btn-cap"></span>
-              <span class="btn-led led-cyan"></span>
+          <div class="keypad-grid-4x4">
+            <!-- Row 1 -->
+            <button class="kp-key kp-action" data-key="1">
+              <span class="kp-char">1</span>
+              <span class="kp-sub">Spin</span>
             </button>
-            <span class="btn-tag">B2 (GPIO 33)<br><b>SELECT / OK</b></span>
+            <button class="kp-key kp-nav" data-key="2">
+              <span class="kp-char">2</span>
+              <span class="kp-sub">▲ Fwd</span>
+            </button>
+            <button class="kp-key kp-action" data-key="3">
+              <span class="kp-char">3</span>
+              <span class="kp-sub">Color</span>
+            </button>
+            <button class="kp-key kp-hotkey" data-key="A">
+              <span class="kp-char">A</span>
+              <span class="kp-sub">Eyes</span>
+            </button>
+
+            <!-- Row 2 -->
+            <button class="kp-key kp-nav" data-key="4">
+              <span class="kp-char">4</span>
+              <span class="kp-sub">◄ Left</span>
+            </button>
+            <button class="kp-key kp-stop" data-key="5">
+              <span class="kp-char">5</span>
+              <span class="kp-sub">■ Stop</span>
+            </button>
+            <button class="kp-key kp-nav" data-key="6">
+              <span class="kp-char">6</span>
+              <span class="kp-sub">► Right</span>
+            </button>
+            <button class="kp-key kp-hotkey" data-key="B">
+              <span class="kp-char">B</span>
+              <span class="kp-sub">Pomo</span>
+            </button>
+
+            <!-- Row 3 -->
+            <button class="kp-key kp-action" data-key="7">
+              <span class="kp-char">7</span>
+              <span class="kp-sub">Tail</span>
+            </button>
+            <button class="kp-key kp-nav" data-key="8">
+              <span class="kp-char">8</span>
+              <span class="kp-sub">▼ Rev</span>
+            </button>
+            <button class="kp-key kp-action" data-key="9">
+              <span class="kp-char">9</span>
+              <span class="kp-sub">Boost</span>
+            </button>
+            <button class="kp-key kp-hotkey" data-key="C">
+              <span class="kp-char">C</span>
+              <span class="kp-sub">Music</span>
+            </button>
+
+            <!-- Row 4 -->
+            <button class="kp-key kp-spec" data-key="*">
+              <span class="kp-char">*</span>
+              <span class="kp-sub">Back</span>
+            </button>
+            <button class="kp-key kp-num" data-key="0">
+              <span class="kp-char">0</span>
+              <span class="kp-sub">Happy</span>
+            </button>
+            <button class="kp-key kp-spec" data-key="#">
+              <span class="kp-char">#</span>
+              <span class="kp-sub">Select</span>
+            </button>
+            <button class="kp-key kp-hotkey" data-key="D">
+              <span class="kp-char">D</span>
+              <span class="kp-sub">Info</span>
+            </button>
           </div>
 
-          <div class="btn-hardware-wrapper">
-            <button class="btn-hardware" id="hw-btn-3" data-key="3">
-              <span class="btn-cap"></span>
-              <span class="btn-led"></span>
-            </button>
-            <span class="btn-tag">B3 (GPIO 27)<br><b>BACK / MOOD</b></span>
+          <div class="keyboard-hints">
+            <span>⌨️ Press keys on your physical keypad, click above, or type on keyboard!</span>
           </div>
-        </div>
-
-        <div class="keyboard-hints">
-          <span>⌨️ Keyboard shortcuts: <kbd>1</kbd> Menu/Next, <kbd>2</kbd> Select, <kbd>3</kbd> Back/Mood</span>
         </div>
       </div>
 
