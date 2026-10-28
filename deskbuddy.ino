@@ -45,7 +45,7 @@ const int BUZZER_PIN = 26; // Audio Buzzer
 // WiFi & Embedded Web Server Configuration
 // ====================================================
 const char *apSSID =
-    "DeskBot-WiFi";      // Hotspot name visible in phone/laptop WiFi settings
+    "ByStander-WiFi";      // Hotspot name visible in phone/laptop WiFi settings
 const char *apPass = ""; // Open network (no password needed to connect)
 char wifiSSID[32] = "Airtel_402"; // Fallback/Default router SSID
 char wifiPass[64] = "9550175678"; // Fallback/Default router password
@@ -58,8 +58,8 @@ WebServer server(80);
 // ====================================================
 const char* mqttServer = "broker.emqx.io";
 const int mqttPort = 1883;
-const char* mqttTopicCmd = "deskbot/2b4fcd/cmd";
-const char* mqttTopicStatus = "deskbot/2b4fcd/status";
+const char* mqttTopicCmd = "bystander/2b4fcd/cmd";
+const char* mqttTopicStatus = "bystander/2b4fcd/status";
 
 WiFiClient mqttTcpClient;
 PubSubClient mqttClient(mqttTcpClient);
@@ -280,7 +280,7 @@ void sendOllieKeepAlive() {
   sendSpheroPacket(0x00, 0x01, nullptr, 0, true);
 }
 
-class DeskBotOllieScanCallbacks: public BLEAdvertisedDeviceCallbacks {
+class ByStanderOllieScanCallbacks: public BLEAdvertisedDeviceCallbacks {
   void onResult(BLEAdvertisedDevice advertisedDevice) {
     if (foundOllieDevice != nullptr) return;
     String name = advertisedDevice.getName().c_str();
@@ -343,7 +343,7 @@ bool setupOllieServices() {
   return true;
 }
 
-class DeskBotClientCallbacks : public BLEClientCallbacks {
+class ByStanderClientCallbacks : public BLEClientCallbacks {
   void onConnect(BLEClient* pclient) {
     Serial.println(F("[BLE] Ollie connected!"));
     ollieConnected = true;
@@ -359,7 +359,7 @@ bool connectToOllie() {
 
   if (!pOllieClient) {
     pOllieClient = BLEDevice::createClient();
-    pOllieClient->setClientCallbacks(new DeskBotClientCallbacks());
+    pOllieClient->setClientCallbacks(new ByStanderClientCallbacks());
   }
 
   if (foundOllieDevice != nullptr) {
@@ -478,7 +478,7 @@ void sendSpotifyCommand(const char *endpoint, const char *method);
 // ====================================================
 void setup() {
   Serial.begin(115200);
-  Serial.println(F("\n=== DeskBot 2.0 Starting Up ==="));
+  Serial.println(F("\n=== ByStander 2.0 Starting Up ==="));
 
   // 1. Audio boot beep FIRST
   pinMode(BUZZER_PIN, OUTPUT);
@@ -535,7 +535,7 @@ void setup() {
   }
 
   // 6. Load saved WiFi from Flash memory (competition & travel ready!)
-  preferences.begin("deskbot", false);
+  preferences.begin("bystander", false);
   String storedSSID = preferences.getString("ssid", "Airtel_402");
   String storedPass = preferences.getString("pass", "9550175678");
   strncpy(wifiSSID, storedSSID.c_str(), sizeof(wifiSSID));
@@ -554,7 +554,7 @@ void setup() {
                         "Jr2NOcQoJSFi_LxYgCbqLyK1STx1ZgyV4";
   Serial.println(F("[Spotify] Reset credentials to verified working account!"));
 
-  // Launch DeskBot-WiFi Hotspot (SoftAP) + Station Mode
+  // Launch ByStander-WiFi Hotspot (SoftAP) + Station Mode
   WiFi.mode(WIFI_AP_STA);
   WiFi.setSleep(false); // Crucial for ESP32 WiFi + BLE Coexistence without packet loss!
   WiFi.softAP(apSSID, apPass);
@@ -585,7 +585,7 @@ void setup() {
       refreshSpotifyToken();
       pollSpotifyCurrentlyPlaying();
     } else {
-      Serial.println(F("[WiFi] Router connection timed out. DeskBot-WiFi "
+      Serial.println(F("[WiFi] Router connection timed out. ByStander-WiFi "
                        "Hotspot is on 192.168.4.1"));
     }
   }
@@ -599,7 +599,7 @@ void setup() {
   mqttClient.setBufferSize(512);
 
   // Initialize BLE & auto-connect to Sphero Ollie (2B-4FCD)
-  BLEDevice::init("DeskBot-2.0");
+  BLEDevice::init("ByStander-2.0");
   Serial.println(F("[BLE] Attempting auto-connection to Sphero Ollie (2B-4FCD)..."));
   connectToOllie();
 
@@ -614,7 +614,7 @@ void setup() {
       delay(1800);
     } else {
       displayR.setCursor(0, 2);
-      displayR.print(F("HOTSPOT: DeskBot"));
+      displayR.print(F("HOTSPOT: ByStander"));
       displayR.setCursor(0, 14);
       displayR.print(F("IP: 192.168.4.1"));
     }
@@ -638,7 +638,7 @@ void loop() {
     sendOllieKeepAlive();
   }
 
-  // Always service web requests (whether on DeskBot-WiFi or home network)
+  // Always service web requests (whether on ByStander-WiFi or home network)
   server.handleClient();
 
   renderDisplays();
@@ -915,7 +915,7 @@ void setupWebServer() {
         soundVictory();
         resp += "<h2 style='color:#00e676;'>Connected to " + newSSID + "!</h2>";
         resp +=
-            "<p>DeskBot Local IP: <b><a style='color:#00e5ff;' href='http://" +
+            "<p>ByStander Local IP: <b><a style='color:#00e5ff;' href='http://" +
             espIPAddress + "'>" + espIPAddress + "</a></b></p>";
         resp += "<p>Saved to flash memory! You can now switch your "
                 "laptop/phone to <b>" +
@@ -925,7 +925,7 @@ void setupWebServer() {
                 "background...</h2>";
         resp += "<p>Check the Right OLED screen for your IP address.</p>";
       }
-      resp += "<p><a style='color:#00e5ff;' href='/'>Back to DeskBot "
+      resp += "<p><a style='color:#00e5ff;' href='/'>Back to ByStander "
               "Portal</a></p></body></html>";
       server.send(200, "text/html", resp);
       return;
@@ -948,7 +948,7 @@ void setupWebServer() {
         "<!DOCTYPE html><html><body "
         "style='font-family:sans-serif;background:#0d1224;color:#fff;text-"
         "align:center;padding:40px;'><h2 style='color:#ff5252;'>WiFi Reset to "
-        "Hotspot!</h2><p>Broadcasting <b>DeskBot-WiFi</b> (192.168.4.1).</p><a "
+        "Hotspot!</h2><p>Broadcasting <b>ByStander-WiFi</b> (192.168.4.1).</p><a "
         "style='color:#00e5ff' href='/'>Back to Portal</a></body></html>");
   });
 
@@ -1513,7 +1513,7 @@ void maintainMqtt() {
   if (!mqttClient.connected()) {
     if (now - lastMqttReconnectAttempt > 5000) {
       lastMqttReconnectAttempt = now;
-      String clientId = "DeskBot-ESP32-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+      String clientId = "ByStander-ESP32-" + String((uint32_t)ESP.getEfuseMac(), HEX);
       if (mqttClient.connect(clientId.c_str())) {
         Serial.println(F("[MQTT] Connected to broker.emqx.io!"));
         mqttClient.subscribe(mqttTopicCmd);

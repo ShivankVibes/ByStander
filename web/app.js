@@ -1,5 +1,5 @@
 /**
- * DeskBot v2.0 - Complete Web Controller & Dual-OLED Digital Twin
+ * ByStander v2.0 - Complete Web Controller & Dual-OLED Digital Twin
  * Real-time 128x32 dual canvas simulator, Web Audio 8-bit synth, Spotify, Ollie BLE & Pomodoro
  */
 
@@ -626,8 +626,8 @@ async function syncSpotifyStatus() {
         state.spotify.progressSec = sp.progress;
         state.spotify.totalSec = sp.total > 0 ? sp.total : 180;
 
-        const title = sp.track || "DeskBot Groove";
-        const artist = sp.artist || "DeskBot Audio";
+        const title = sp.track || "ByStander Groove";
+        const artist = sp.artist || "ByStander Audio";
 
         trackTitleEl.textContent = title;
         trackArtistEl.textContent = artist;
@@ -730,8 +730,8 @@ const statusOlliePill = document.getElementById('status-ollie');
 // ==========================================================================
 const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 const MQTT_DEVICE_ID = '2b4fcd';
-const MQTT_TOPIC_CMD = `deskbot/${MQTT_DEVICE_ID}/cmd`;
-const MQTT_TOPIC_STATUS = `deskbot/${MQTT_DEVICE_ID}/status`;
+const MQTT_TOPIC_CMD = `bystander/${MQTT_DEVICE_ID}/cmd`;
+const MQTT_TOPIC_STATUS = `bystander/${MQTT_DEVICE_ID}/status`;
 
 let mqttClient = null;
 let isMqttConnected = false;
@@ -742,7 +742,7 @@ function initMqttBridge() {
   const cloudPill = document.getElementById('status-cloud');
   const cloudText = document.getElementById('cloud-status-text');
   const cloudDot = document.getElementById('cloud-dot');
-  const clientId = 'deskbot_web_' + Math.random().toString(16).substr(2, 8);
+  const clientId = 'bystander_web_' + Math.random().toString(16).substr(2, 8);
 
   try {
     mqttClient = mqtt.connect(MQTT_BROKER_URL, {
@@ -1214,7 +1214,7 @@ async function connectToEsp(targetIp) {
     const res = await fetch(`${ip}/api/status`, { mode: 'cors' });
     if (res.ok) {
       espBaseUrl = ip;
-      localStorage.setItem('deskbot_esp_ip', ip);
+      localStorage.setItem('bystander_esp_ip', ip);
       if (ipFeedback) ipFeedback.textContent = 'Connected! Syncing live with ESP32.';
       statusEspPill.querySelector('.status-label').textContent = `ESP32: ${ip.replace('http://', '')} (WiFi)`;
       statusEspPill.querySelector('.status-dot').style.backgroundColor = 'var(--accent-green)';
@@ -1224,7 +1224,7 @@ async function connectToEsp(targetIp) {
       if (ipFeedback) ipFeedback.textContent = 'Error: ESP32 returned status ' + res.status;
     }
   } catch (err) {
-    if (ipFeedback) ipFeedback.textContent = 'Could not reach ESP32 at ' + ip + '. Connect to DeskBot-WiFi or same router!';
+    if (ipFeedback) ipFeedback.textContent = 'Could not reach ESP32 at ' + ip + '. Connect to ByStander-WiFi or same router!';
   }
   return false;
 }
@@ -1236,7 +1236,7 @@ btnConnectIp.addEventListener('click', async () => {
 });
 
 // Auto-connect to ESP32 IP on startup (defaulting to 192.168.4.1)
-const savedEspIp = localStorage.getItem('deskbot_esp_ip') || 'http://192.168.4.1';
+const savedEspIp = localStorage.getItem('bystander_esp_ip') || 'http://192.168.4.1';
 if (inputEspIp) inputEspIp.value = savedEspIp.replace('http://', '');
 connectToEsp(savedEspIp);
 
@@ -1320,7 +1320,7 @@ if (btnSaveWifi) {
       return;
     }
     if (wifiFeedback) {
-      wifiFeedback.textContent = `Connecting DeskBot to "${ssid}"... Check Right OLED!`;
+      wifiFeedback.textContent = `Connecting ByStander to "${ssid}"... Check Right OLED!`;
       wifiFeedback.style.color = 'var(--accent-cyan)';
     }
     try {
@@ -1333,7 +1333,7 @@ if (btnSaveWifi) {
       synth.soundVictory();
     } catch (e) {
       if (wifiFeedback) {
-        wifiFeedback.textContent = `✅ Credentials sent! DeskBot is joining "${ssid}".`;
+        wifiFeedback.textContent = `✅ Credentials sent! ByStander is joining "${ssid}".`;
         wifiFeedback.style.color = 'var(--accent-green)';
       }
     }
@@ -1341,7 +1341,7 @@ if (btnSaveWifi) {
 }
 
 // ==========================================================================
-// DeskBot Voice Assistant & Speech Controller ("Hey DeskBot")
+// ByStander Voice Assistant & Speech Controller ("Hey ByStander")
 // ==========================================================================
 const voiceOrbBtn = document.getElementById('voice-orb-btn');
 const btnVoiceToggle = document.getElementById('btn-voice-toggle');
@@ -1356,7 +1356,7 @@ let isSpeaking = false;
 let lastVoiceCmdTime = 0;
 
 // Speech Synthesis Robot Voice
-function speakDeskBot(text) {
+function speakByStander(text) {
   if (!('speechSynthesis' in window)) return;
   isSpeaking = true;
   // Instantly close microphone while robot speaks to prevent acoustic feedback loop!
@@ -1406,7 +1406,7 @@ function processVoiceCommand(rawTranscript) {
     synth.soundVictory();
     const reply = "Playing Spotify music!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('pause') || t.includes('stop music') || t.includes('hold on')) {
@@ -1414,7 +1414,7 @@ function processVoiceCommand(rawTranscript) {
     synth.btnClick();
     const reply = "Music paused.";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('next') || t.includes('skip')) {
@@ -1422,7 +1422,7 @@ function processVoiceCommand(rawTranscript) {
     synth.soundChirp();
     const reply = "Skipped to next track!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
 
@@ -1433,7 +1433,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mood?set=happy`).catch(()=>{});
     const reply = "Happy to see you!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('wink')) {
@@ -1442,7 +1442,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mood?set=wink`).catch(()=>{});
     const reply = "Winking at you!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('surprised') || t.includes('shock') || t.includes('whoa')) {
@@ -1451,7 +1451,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mood?set=surprised`).catch(()=>{});
     const reply = "Whoa! That caught me off guard!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('sleep') || t.includes('tired')) {
@@ -1460,7 +1460,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mood?set=sleepy`).catch(()=>{});
     const reply = "Taking a power nap... zzz";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('neutral') || t.includes('normal')) {
@@ -1468,7 +1468,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mood?set=neutral`).catch(()=>{});
     const reply = "Neutral gaze restored.";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
 
@@ -1481,7 +1481,7 @@ function processVoiceCommand(rawTranscript) {
       synth.soundVictory();
       const reply = "Executing 360-degree spin trick on Ollie!";
       voiceBotReply.textContent = `"${reply}"`;
-      speakDeskBot(reply);
+      speakByStander(reply);
       return;
     }
 
@@ -1491,7 +1491,7 @@ function processVoiceCommand(rawTranscript) {
       synth.soundPoke();
       const reply = "Braking Ollie immediately!";
       voiceBotReply.textContent = `"${reply}"`;
-      speakDeskBot(reply);
+      speakByStander(reply);
       return;
     }
 
@@ -1519,7 +1519,7 @@ function processVoiceCommand(rawTranscript) {
     synth.soundChirp();
     const reply = `Rolling Ollie ${dirName} ${distanceCm} centimeters!`;
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
 
@@ -1536,7 +1536,7 @@ function processVoiceCommand(rawTranscript) {
     synth.soundHappy();
     const reply = `Set Ollie light to ${col}!`;
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
 
@@ -1549,7 +1549,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mode?set=1`).catch(()=>{});
     const reply = "Pomodoro focus timer started! 25 minutes on the clock.";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('ollie') || t.includes('battery')) {
@@ -1559,7 +1559,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mode?set=2`).catch(()=>{});
     const reply = `Sphero Ollie connected! Battery is at 88%.`;
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('reflex') || t.includes('game')) {
@@ -1569,7 +1569,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mode?set=3`).catch(()=>{});
     const reply = "Reflex reaction game activated! Get ready!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('eyes') || t.includes('companion') || t.includes('home')) {
@@ -1579,7 +1579,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mode?set=0`).catch(()=>{});
     const reply = "Dual companion eyes active!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
 
@@ -1588,13 +1588,13 @@ function processVoiceCommand(rawTranscript) {
     const joke = BOT_JOKES[Math.floor(Math.random() * BOT_JOKES.length)];
     voiceBotReply.textContent = `"${joke}"`;
     synth.soundHappy();
-    speakDeskBot(joke);
+    speakByStander(joke);
     return;
   }
-  if (t.includes('who are you') || t.includes('what is deskbot')) {
-    const reply = "I am DeskBot, your dual-OLED robotic companion and productivity buddy!";
+  if (t.includes('who are you') || t.includes('what is bystander')) {
+    const reply = "I am ByStander, your dual-OLED robotic companion and productivity buddy!";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('hello') || t.includes('hi') || t.includes('hey')) {
@@ -1602,14 +1602,14 @@ function processVoiceCommand(rawTranscript) {
     synth.soundHappy();
     const reply = "Hello human! What can I do for you today?";
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('time')) {
     const now = new Date();
     const reply = `The time is ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
   if (t.includes('status') || t.includes('system') || t.includes('ip')) {
@@ -1618,7 +1618,7 @@ function processVoiceCommand(rawTranscript) {
     if (espBaseUrl) fetch(`${espBaseUrl}/api/mode?set=5`).catch(()=>{});
     const reply = `All systems online. ESP32 linked. Spotify synced.`;
     voiceBotReply.textContent = `"${reply}"`;
-    speakDeskBot(reply);
+    speakByStander(reply);
     return;
   }
 
@@ -1626,7 +1626,7 @@ function processVoiceCommand(rawTranscript) {
   synth.soundPoke();
   const fallback = `I heard "${rawTranscript}". Try 'play music', 'happy face', or 'start timer'!`;
   voiceBotReply.textContent = `"${fallback}"`;
-  speakDeskBot("Command received.");
+  speakByStander("Command received.");
 }
 
 // Setup Web Speech Recognition

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DeskBot 🤖 | Intelligent Desktop Companion Dashboard</title>
-  <meta name="description" content="Next-gen interactive web dashboard for DeskBot: Dual-OLED companion simulator, Pomodoro focus timer, Sphero Ollie BLE battery monitor, Spotify player, and reflex minigames.">
+  <title>ByStander 🤖 | Intelligent Desktop Companion Dashboard</title>
+  <meta name="description" content="Next-gen interactive web dashboard for ByStander: Dual-OLED companion simulator, Pomodoro focus timer, Sphero Ollie BLE battery monitor, Spotify player, and reflex minigames.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
     <div class="brand">
       <div class="bot-avatar-badge">🤖</div>
       <div class="brand-text">
-        <h1 class="brand-title">DeskBot <span class="version-tag">v2.0</span></h1>
+        <h1 class="brand-title">ByStander <span class="version-tag">v2.0</span></h1>
         <p class="brand-subtitle">ESP32 Dual-OLED Companion & Control Center</p>
       </div>
     </div>
@@ -39,7 +39,7 @@
         <span class="status-dot" id="cloud-dot"></span>
         <span class="status-label" id="cloud-status-text">Cloud: Linking...</span>
       </div>
-      <button class="btn-voice-toggle" id="btn-voice-toggle" title="DeskBot Voice Assistant (Press 'V')">
+      <button class="btn-voice-toggle" id="btn-voice-toggle" title="ByStander Voice Assistant (Press 'V')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         <span>Voice Assistant</span>
       </button>
@@ -67,7 +67,7 @@
       </div>
 
       <!-- Realistic ESP32 Device Chasis -->
-      <div class="deskbot-chassis">
+      <div class="bystander-chassis">
         <div class="chassis-glow"></div>
         <div class="chassis-branding">DESKBOT 2.0 // ESP32-WROOM</div>
 
@@ -344,7 +344,7 @@
         <div class="feature-header">
           <div class="card-title-group">
             <span class="feature-icon">🎙️</span>
-            <h3>DeskBot Voice Assistant</h3>
+            <h3>ByStander Voice Assistant</h3>
           </div>
           <div class="voice-status-badge" id="voice-badge">READY (PRESS 'V')</div>
         </div>
@@ -392,7 +392,7 @@
   </main>
 
   <footer class="app-footer">
-    <p>DeskBot Companion Ecosystem • ESP32 DevKit V1 • 2x I2C SSD1306 (Wire & Wire1) • 3x Buttons (GPIO 32, 33, 27)</p>
+    <p>ByStander Companion Ecosystem • ESP32 DevKit V1 • 2x I2C SSD1306 (Wire & Wire1) • 3x Buttons (GPIO 32, 33, 27)</p>
   </footer>
 
   <!-- Modal: WiFi & Spotify API Configuration -->
@@ -407,10 +407,10 @@
       </div>
 
       <div class="modal-body">
-        <!-- Section 1: Connect DeskBot to WiFi -->
+        <!-- Section 1: Connect ByStander to WiFi -->
         <div class="config-section">
-          <h4>📶 Connect DeskBot to WiFi (School / Home / Hotspot)</h4>
-          <p class="config-desc">Save your router or phone hotspot credentials into DeskBot's Flash memory:</p>
+          <h4>📶 Connect ByStander to WiFi (School / Home / Hotspot)</h4>
+          <p class="config-desc">Save your router or phone hotspot credentials into ByStander's Flash memory:</p>
           <div class="form-group">
             <label for="cfg-wifi-ssid">WiFi Network Name (SSID)</label>
             <input type="text" id="cfg-wifi-ssid" placeholder="e.g. Airtel_402, School-WiFi, or MyHotspot" class="input-text">
@@ -428,7 +428,7 @@
         <!-- Section 2: ESP32 Live IP Connection -->
         <div class="config-section">
           <h4>📡 Connect to ESP32 over WiFi</h4>
-          <p class="config-desc">Enter your ESP32's local IP address (shown on the Right OLED under <b>System Status</b>, e.g. <code>192.168.1.55</code>) to control your physical DeskBot wirelessly:</p>
+          <p class="config-desc">Enter your ESP32's local IP address (shown on the Right OLED under <b>System Status</b>, e.g. <code>192.168.1.55</code>) to control your physical ByStander wirelessly:</p>
           <div class="input-row">
             <input type="text" id="cfg-esp-ip" placeholder="http://192.168.1.55" class="input-text">
             <button class="btn-action btn-pomo-primary" id="btn-connect-ip">Connect Live</button>
@@ -439,12 +439,12 @@
         <!-- Section 2: Connect Any Spotify Account -->
         <div class="config-section">
           <h4>🎵 Connect Any Spotify Account</h4>
-          <p class="config-desc">Connect any personal Spotify account to your DeskBot in 2 simple steps:</p>
+          <p class="config-desc">Connect any personal Spotify account to your ByStander in 2 simple steps:</p>
           
           <div class="auth-step-box">
             <div class="auth-step-header">
               <span class="step-num">1</span>
-              <span>Authorize DeskBot on your Spotify account:</span>
+              <span>Authorize ByStander on your Spotify account:</span>
             </div>
             <a href="https://accounts.spotify.com/authorize?client_id=001f2f27609349db91cea22353df81ce&response_type=code&redirect_uri=https://example.com/callback&scope=user-read-playback-state%20user-modify-playback-state%20user-read-currently-playing" target="_blank" rel="noopener" class="btn-spotify-connect" id="btn-spotify-auth-link">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.018.6-1.141 4.38-1.38 9.781-.72 13.439 1.56.421.18.6.84.302 1.261zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
