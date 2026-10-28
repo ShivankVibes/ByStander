@@ -34,11 +34,31 @@ Adafruit_SSD1306 displayR(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, OLED_RESET);
 bool rightDisplayAvailable = false;
 
 // ====================================================
-// Hardware Pinout Reference
+// Hardware Pinout Reference (4x4 Keypad Matrix)
 // ====================================================
-const int BTN_MENU = 32;   // Button 1: Menu / Next (Internal Pullup)
-const int BTN_SELECT = 33; // Button 2: Select / Action (Internal Pullup)
-const int BTN_BACK = 27;   // Button 3: Back / Mood (Internal Pullup)
+#include <Keypad.h>
+
+const byte KEYPAD_ROWS = 4;
+const byte KEYPAD_COLS = 4;
+
+char keypadKeys[KEYPAD_ROWS][KEYPAD_COLS] = {
+  {'1', '2', '3', 'A'},
+  {'4', '5', '6', 'B'},
+  {'7', '8', '9', 'C'},
+  {'*', '0', '#', 'D'}
+};
+
+// 4 Rows (Outputs): GPIO 13, 14, 27, 25
+byte rowPins[KEYPAD_ROWS] = {13, 14, 27, 25};
+
+// 4 Columns (Inputs): GPIO 33, 32, 4, 23
+byte colPins[KEYPAD_COLS] = {33, 32, 4, 23};
+
+Keypad keypad = Keypad(makeKeymap(keypadKeys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
+
+char lastKeyPressed = ' ';
+unsigned long lastKeyPressTime = 0;
+
 const int BUZZER_PIN = 26; // Audio Buzzer
 
 // ====================================================
@@ -406,30 +426,13 @@ unsigned long reflexCueStartTime = 0;
 unsigned long reflexReactionTime = 0;
 
 // ====================================================
-// Button Software Debounce (35ms Filter)
+// Mode Switch Engine
 // ====================================================
-int btn1LastRaw = HIGH;
-int btn2LastRaw = HIGH;
-int btn3LastRaw = HIGH;
-
-int btn1Stable = HIGH;
-int btn2Stable = HIGH;
-int btn3Stable = HIGH;
-
-unsigned long btn1LastChange = 0;
-unsigned long btn2LastChange = 0;
-unsigned long btn3LastChange = 0;
-
-bool btn1IsHeld = false;
-bool btn2IsHeld = false;
-bool btn3IsHeld = false;
-
 unsigned long modeSwitchCooldownUntil = 0;
-const unsigned long DEBOUNCE_DELAY = 35;
 
 void switchMode(BotMode newMode) {
   currentMode = newMode;
-  modeSwitchCooldownUntil = millis() + 300;
+  modeSwitchCooldownUntil = millis() + 250;
   if (newMode == MODE_SPOTIFY) {
     lastSpotifyApiPoll = 0; // Trigger Spotify poll immediately
   }
@@ -458,7 +461,9 @@ void drawReflexGameRight();
 void drawSpotifyRight();
 void drawSystemInfoRight();
 
-void handleButtons();
+void handleKeypad();
+void processKeyEvent(char key);
+void processButtonEvent(int btnId);
 void updateAsyncState();
 void renderDisplays();
 void setupWebServer();
@@ -486,14 +491,8 @@ void setup() {
   delay(60);
   digitalWrite(BUZZER_PIN, LOW);
 
-  // 2. Buttons (All 3 with internal pullups)
-  pinMode(BTN_MENU, INPUT_PULLUP);
-  pinMode(BTN_SELECT, INPUT_PULLUP);
-  pinMode(BTN_BACK, INPUT_PULLUP);
-
-  btn1Stable = btn1LastRaw = digitalRead(BTN_MENU);
-  btn2Stable = btn2LastRaw = digitalRead(BTN_SELECT);
-  btn3Stable = btn3LastRaw = digitalRead(BTN_BACK);
+  // 2. 4x4 Keypad Matrix Initialization
+  keypad.setDebounceTime(25);
 
   // 3. Initialize Left Display on Wire (SDA=21, SCL=22)
   Wire.begin(21, 22);
@@ -629,7 +628,7 @@ void setup() {
 // MAIN LOOP
 // ====================================================
 void loop() {
-  handleButtons();
+  handleKeypad();
   updateAsyncState();
 
   // Sphero Ollie 2.5-second keep-alive ping
@@ -1209,251 +1208,233 @@ void sendSpotifyCommand(const char *endpoint, const char *method) {
 }
 
 // ====================================================
-// BUTTON INPUT HANDLER
+// 4x4 KEYPAD MATRIX DISPATCH ENGINE
 // ====================================================
-void handleButtons() {
-  unsigned long now = millis();
+void processKeyEvent(char key) {
+  lastKeyPressed = key;
+  lastKeyPressTime = millis();
+  Serial.printf("[Keypad] Key '%c' pressed\n", key);
 
-  int r1 = digitalRead(BTN_MENU);
-  int r2 = digitalRead(BTN_SELECT);
-  int r3 = digitalRead(BTN_BACK);
+  // Audio feedback on every keypress
+  soundPoke();
 
-  btn1IsHeld = (r1 == LOW);
-  btn2IsHeld = (r2 == LOW);
-  btn3IsHeld = (r3 == LOW);
-
-  if (now < modeSwitchCooldownUntil)
+  // 1. GLOBAL SYSTEM HOTKEYS (A, B, C, D)
+  if (key == 'A') {
+    // Mode A: Companion Eyes
+    switchMode(MODE_COMPANION);
+    soundHappy();
     return;
-
-  // Button 1 (GPIO 32)
-  if (r1 != btn1LastRaw) {
-    btn1LastChange = now;
-    btn1LastRaw = r1;
-  }
-  if ((now - btn1LastChange) > DEBOUNCE_DELAY) {
-    if (r1 != btn1Stable) {
-      btn1Stable = r1;
-      if (btn1Stable == LOW) {
-        processButtonEvent(1);
-        return;
-      }
-    }
-  }
-
-  // Button 2 (GPIO 33)
-  if (r2 != btn2LastRaw) {
-    btn2LastChange = now;
-    btn2LastRaw = r2;
-  }
-  if ((now - btn2LastChange) > DEBOUNCE_DELAY) {
-    if (r2 != btn2Stable) {
-      btn2Stable = r2;
-      if (btn2Stable == LOW) {
-        processButtonEvent(2);
-        return;
-      }
-    }
+  } else if (key == 'B') {
+    // Mode B: Pomodoro Focus Timer
+    switchMode(MODE_POMODORO);
+    soundChirp();
+    return;
+  } else if (key == 'C') {
+    // Mode C: Spotify Music Controller
+    switchMode(MODE_SPOTIFY);
+    soundHappy();
+    return;
+  } else if (key == 'D') {
+    // Mode D: System Status & Wi-Fi IP
+    switchMode(MODE_SYSTEM_INFO);
+    soundChirp();
+    return;
   }
 
-  // Button 3 (GPIO 27)
-  if (r3 != btn3LastRaw) {
-    btn3LastChange = now;
-    btn3LastRaw = r3;
-  }
-  if ((now - btn3LastChange) > DEBOUNCE_DELAY) {
-    if (r3 != btn3Stable) {
-      btn3Stable = r3;
-      if (btn3Stable == LOW) {
-        processButtonEvent(3);
-        return;
-      }
-    }
-  }
-}
-
-// ====================================================
-// DISPATCH BUTTON ACTIONS
-// ====================================================
-void processButtonEvent(int btnId) {
-  bool btn1 = (btnId == 1);
-  bool btn2 = (btnId == 2);
-  bool btn3 = (btnId == 3);
-
+  // 2. CONTEXTUAL MODE HANDLERS
   switch (currentMode) {
   case MODE_COMPANION:
-    if (btn1) {
+    if (key == '#' || key == '5') {
       soundChirp();
       switchMode(MODE_MENU);
-    } else if (btn2) {
-      soundPoke();
-      currentExpr = EXPR_SURPRISED;
-      lastEyeShiftTime = millis() + 1500;
-    } else if (btn3) {
+    } else if (key == '0') {
       soundHappy();
       switch (currentExpr) {
-      case EXPR_NEUTRAL:
-        currentExpr = EXPR_HAPPY;
-        break;
-      case EXPR_HAPPY:
-        currentExpr = EXPR_LOOK_LEFT;
-        break;
-      case EXPR_LOOK_LEFT:
-        currentExpr = EXPR_LOOK_RIGHT;
-        break;
-      case EXPR_LOOK_RIGHT:
-        currentExpr = EXPR_SURPRISED;
-        break;
-      case EXPR_SURPRISED:
-        currentExpr = EXPR_WINK;
-        break;
-      case EXPR_WINK:
-        currentExpr = EXPR_SLEEPY;
-        break;
-      case EXPR_SLEEPY:
-      default:
-        currentExpr = EXPR_NEUTRAL;
-        break;
+      case EXPR_NEUTRAL: currentExpr = EXPR_HAPPY; break;
+      case EXPR_HAPPY: currentExpr = EXPR_WINK; break;
+      case EXPR_WINK: currentExpr = EXPR_SURPRISED; break;
+      case EXPR_SURPRISED: currentExpr = EXPR_SLEEPY; break;
+      default: currentExpr = EXPR_NEUTRAL; break;
       }
       lastEyeShiftTime = millis() + 4000;
+    } else if (key == '2') {
+      currentExpr = EXPR_SURPRISED;
+      soundPoke();
+    } else if (key == '4') {
+      currentExpr = EXPR_LOOK_LEFT;
+    } else if (key == '6') {
+      currentExpr = EXPR_LOOK_RIGHT;
+    } else if (key == '8') {
+      currentExpr = EXPR_SLEEPY;
+    } else if (key == '1') {
+      // Quick Ollie Spin
+      spinTrick();
+    } else if (key == '3') {
+      // Quick Ollie Color Cycle
+      ollieColorIndex = (ollieColorIndex + 1) % TOTAL_OLLIE_COLORS;
+      setOllieColor(ollieColorRGB[ollieColorIndex][0], 
+                    ollieColorRGB[ollieColorIndex][1], 
+                    ollieColorRGB[ollieColorIndex][2]);
     }
     break;
 
   case MODE_MENU:
-    if (btn1) {
+    if (key == '2' || key == '4') {
+      // Scroll Up
+      selectedMenuItem = (selectedMenuItem + TOTAL_MENU_ITEMS - 1) % TOTAL_MENU_ITEMS;
+      soundChirp();
+    } else if (key == '8' || key == '6') {
+      // Scroll Down
       selectedMenuItem = (selectedMenuItem + 1) % TOTAL_MENU_ITEMS;
       soundChirp();
-    } else if (btn2) {
+    } else if (key == '#' || key == '5') {
       soundCoin();
       switch (selectedMenuItem) {
-      case 0:
-        switchMode(MODE_COMPANION);
-        break;
-      case 1:
-        switchMode(MODE_POMODORO);
-        break;
-      case 2:
-        switchMode(MODE_OLLIE);
-        break;
-      case 3:
-        reflexState = REFLEX_WAIT_START;
-        switchMode(MODE_REFLEX_GAME);
-        break;
-      case 4:
-        switchMode(MODE_SPOTIFY);
-        break;
-      case 5:
-        switchMode(MODE_SYSTEM_INFO);
-        break;
+      case 0: switchMode(MODE_COMPANION); break;
+      case 1: switchMode(MODE_POMODORO); break;
+      case 2: switchMode(MODE_OLLIE); break;
+      case 3: reflexState = REFLEX_WAIT_START; switchMode(MODE_REFLEX_GAME); break;
+      case 4: switchMode(MODE_SPOTIFY); break;
+      case 5: switchMode(MODE_SYSTEM_INFO); break;
       }
-    } else if (btn3) {
+    } else if (key == '*' || key == '0') {
       soundChirp();
       switchMode(MODE_COMPANION);
-    }
-    break;
-
-  case MODE_POMODORO:
-    if (btn1) {
-      if (!timerRunning) {
-        if (timerTotalSeconds == 25 * 60)
-          timerTotalSeconds = 45 * 60;
-        else if (timerTotalSeconds == 45 * 60)
-          timerTotalSeconds = 5 * 60;
-        else
-          timerTotalSeconds = 25 * 60;
-        timerRemainingSeconds = timerTotalSeconds;
-        soundChirp();
-      }
-    } else if (btn2) {
-      timerRunning = !timerRunning;
-      lastTimerTick = millis();
-      if (timerRunning)
-        soundHappy();
-      else
-        soundChirp();
-    } else if (btn3) {
-      soundChirp();
-      switchMode(MODE_MENU);
+    } else if (key >= '1' && key <= '6') {
+      selectedMenuItem = key - '1';
+      processKeyEvent('#');
     }
     break;
 
   case MODE_OLLIE:
-    if (btn1) {
+    // Physical 2-Axis Precision Pilot via Keypad!
+    if (key == '2') {
+      // Forward 15 cm
+      rollOllieDistanceCm(15, 0);
+    } else if (key == '8') {
+      // Backward 15 cm
+      rollOllieDistanceCm(15, 180);
+    } else if (key == '4') {
+      // Left 90 deg
+      rollOllieDistanceCm(10, 270);
+    } else if (key == '6') {
+      // Right 90 deg
+      rollOllieDistanceCm(10, 90);
+    } else if (key == '5') {
+      // Emergency Brake / Stop
+      stopOllie();
+      soundPoke();
+    } else if (key == '1') {
+      // 360 Spin Trick
+      spinTrick();
+      soundVictory();
+    } else if (key == '3') {
+      // Color Cycle
       ollieColorIndex = (ollieColorIndex + 1) % TOTAL_OLLIE_COLORS;
       setOllieColor(ollieColorRGB[ollieColorIndex][0], 
                     ollieColorRGB[ollieColorIndex][1], 
                     ollieColorRGB[ollieColorIndex][2]);
       soundHappy();
-    } else if (btn2) {
-      spinTrick();
-      soundVictory();
-    } else if (btn3) {
+    } else if (key == '7') {
+      // Toggle Tail Light
+      static bool tailLight = true;
+      tailLight = !tailLight;
+      setOllieBackLed(tailLight ? 255 : 0);
       soundChirp();
+    } else if (key == '9') {
+      // Boost Forward 35 cm!
+      rollOllieDistanceCm(35, 0);
+      soundVictory();
+    } else if (key == '*' || key == '#') {
       switchMode(MODE_MENU);
+      soundChirp();
     }
     break;
 
-  case MODE_REFLEX_GAME:
-    if (reflexState == REFLEX_WAIT_START) {
-      if (btn2 || btn1) {
-        reflexState = REFLEX_WAIT_CUE;
-        reflexWaitTargetTime = millis() + random(1800, 4200);
-        soundChirp();
-      } else if (btn3) {
-        switchMode(MODE_MENU);
-      }
-    } else if (reflexState == REFLEX_WAIT_CUE) {
-      if (btn2) {
-        reflexState = REFLEX_FALSE_START;
-        soundAlarm();
-      }
-    } else if (reflexState == REFLEX_SHOW_CUE) {
-      if (btn2) {
-        reflexReactionTime = millis() - reflexCueStartTime;
-        reflexState = REFLEX_RESULT;
-        soundVictory();
-      }
-    } else if (reflexState == REFLEX_RESULT ||
-               reflexState == REFLEX_FALSE_START) {
-      if (btn2 || btn1) {
-        reflexState = REFLEX_WAIT_START;
-        soundChirp();
-      } else if (btn3) {
-        switchMode(MODE_MENU);
-      }
+  case MODE_POMODORO:
+    if (key == '5' || key == '#') {
+      timerRunning = !timerRunning;
+      lastTimerTick = millis();
+      if (timerRunning) soundHappy(); else soundChirp();
+    } else if (key == '1') {
+      timerTotalSeconds = timerRemainingSeconds = 25 * 60;
+      soundChirp();
+    } else if (key == '2') {
+      timerTotalSeconds = timerRemainingSeconds = 45 * 60;
+      soundChirp();
+    } else if (key == '3') {
+      timerTotalSeconds = timerRemainingSeconds = 5 * 60;
+      soundChirp();
+    } else if (key == '*' || key == '0') {
+      switchMode(MODE_MENU);
+      soundChirp();
     }
     break;
 
   case MODE_SPOTIFY:
-    if (btn1) {
-      if (spotifyApiActive)
-        sendSpotifyCommand("next", "POST");
-      else
-        spotifyTrackIdx = (spotifyTrackIdx + 1) % TOTAL_SPOTIFY_TRACKS;
-      soundChirp();
-    } else if (btn2) {
+    if (key == '5' || key == '#') {
       if (spotifyApiActive) {
         sendSpotifyCommand(liveSpotifyPlaying ? "pause" : "play", "PUT");
         liveSpotifyPlaying = !liveSpotifyPlaying;
       } else {
         spotifyPlaying = !spotifyPlaying;
       }
-      if (spotifyPlaying || liveSpotifyPlaying)
-        soundHappy();
-      else
-        soundChirp();
-    } else if (btn3) {
+      if (spotifyPlaying || liveSpotifyPlaying) soundHappy(); else soundChirp();
+    } else if (key == '6' || key == '3') {
+      if (spotifyApiActive) sendSpotifyCommand("next", "POST");
+      else spotifyTrackIdx = (spotifyTrackIdx + 1) % TOTAL_SPOTIFY_TRACKS;
       soundChirp();
+    } else if (key == '4' || key == '1') {
+      if (spotifyApiActive) sendSpotifyCommand("previous", "POST");
+      else spotifyTrackIdx = (spotifyTrackIdx + TOTAL_SPOTIFY_TRACKS - 1) % TOTAL_SPOTIFY_TRACKS;
+      soundChirp();
+    } else if (key == '*' || key == '0') {
       switchMode(MODE_MENU);
+      soundChirp();
+    }
+    break;
+
+  case MODE_REFLEX_GAME:
+    if (reflexState == REFLEX_WAIT_START) {
+      reflexState = REFLEX_WAIT_CUE;
+      reflexWaitTargetTime = millis() + random(1800, 4200);
+      soundChirp();
+    } else if (reflexState == REFLEX_WAIT_CUE) {
+      reflexState = REFLEX_FALSE_START;
+      soundAlarm();
+    } else if (reflexState == REFLEX_SHOW_CUE) {
+      reflexReactionTime = millis() - reflexCueStartTime;
+      reflexState = REFLEX_RESULT;
+      soundVictory();
+    } else if (reflexState == REFLEX_RESULT || reflexState == REFLEX_FALSE_START) {
+      if (key == '*' || key == '#') {
+        switchMode(MODE_MENU);
+      } else {
+        reflexState = REFLEX_WAIT_START;
+        soundChirp();
+      }
     }
     break;
 
   case MODE_SYSTEM_INFO:
-    if (btn1 || btn2 || btn3) {
-      soundChirp();
-      switchMode(MODE_MENU);
-    }
+    switchMode(MODE_MENU);
+    soundChirp();
     break;
   }
+}
+
+void handleKeypad() {
+  char key = keypad.getKey();
+  if (key != NO_KEY) {
+    processKeyEvent(key);
+  }
+}
+
+// Backwards-compatible Web API button handler (/api/button?btn=1,2,3)
+void processButtonEvent(int btnId) {
+  if (btnId == 1) processKeyEvent('4');
+  else if (btnId == 2) processKeyEvent('5');
+  else if (btnId == 3) processKeyEvent('6');
 }
 
 // ====================================================
@@ -1659,19 +1640,14 @@ void renderDisplays() {
 // GRAPHICS: LIVE BUTTON STATUS INDICATOR (Top-Right)
 // ====================================================
 void drawLiveButtonIndicators(Adafruit_SSD1306 &disp) {
-  int x = 104;
-  int y = 0;
-  disp.drawRect(x, y, 7, 7, SSD1306_WHITE);
-  if (btn1IsHeld)
-    disp.fillRect(x + 1, y + 1, 5, 5, SSD1306_WHITE);
-
-  disp.drawRect(x + 8, y, 7, 7, SSD1306_WHITE);
-  if (btn2IsHeld)
-    disp.fillRect(x + 9, y + 1, 5, 5, SSD1306_WHITE);
-
-  disp.drawRect(x + 16, y, 7, 7, SSD1306_WHITE);
-  if (btn3IsHeld)
-    disp.fillRect(x + 17, y + 1, 5, 5, SSD1306_WHITE);
+  if (millis() - lastKeyPressTime < 1800 && lastKeyPressed != ' ') {
+    disp.fillRect(100, 0, 28, 9, SSD1306_WHITE);
+    disp.setTextSize(1);
+    disp.setTextColor(SSD1306_BLACK);
+    disp.setCursor(102, 1);
+    disp.printf("[%c]", lastKeyPressed);
+    disp.setTextColor(SSD1306_WHITE);
+  }
 }
 
 // ====================================================
@@ -1875,7 +1851,7 @@ void drawReflexGameRight() {
     displayR.setCursor(0, 0);
     displayR.print(F("REFLEX TEST"));
     displayR.setCursor(0, 12);
-    displayR.print(F("Press [B2] to start"));
+    displayR.print(F("Press any key to start"));
     displayR.setCursor(0, 23);
     displayR.print(F("Fastest fingers win!"));
     break;
@@ -1892,7 +1868,7 @@ void drawReflexGameRight() {
     displayR.setTextColor(SSD1306_BLACK);
     displayR.setTextSize(2);
     displayR.setCursor(6, 8);
-    displayR.print(F("PRESS [B2]!"));
+    displayR.print(F("HIT ANY KEY!"));
     break;
 
   case REFLEX_RESULT:
@@ -1904,14 +1880,14 @@ void drawReflexGameRight() {
     displayR.print(F(" ms"));
     displayR.setTextSize(1);
     displayR.setCursor(0, 24);
-    displayR.print(F("Press [B2] retry"));
+    displayR.print(F("Hit key to retry"));
     break;
 
   case REFLEX_FALSE_START:
     displayR.setCursor(14, 4);
     displayR.print(F("TOO EARLY!"));
     displayR.setCursor(0, 18);
-    displayR.print(F("Wait for signal [B2]"));
+    displayR.print(F("Wait for signal!"));
     break;
   }
 }
