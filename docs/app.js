@@ -119,7 +119,7 @@ const MENU_ITEMS = [
   "Spotify Player",
   "System Status",
   "Real-Time Clock",
-  "Creator Bio QR"
+  "Bystander Web"
 ];
 
 const state = {

@@ -169,7 +169,7 @@ int selectedMenuItem = 0;
 const char *menuNames[TOTAL_MENU_ITEMS] = {
     "1. Dual Eyes",       "2. Focus Pomodoro", "3. Wheels (Robot)",
     "4. Reflex Reaction", "5. Spotify Player", "6. System Status",
-    "7. Real-Time Clock", "8. Creator Bio QR"};
+    "7. Real-Time Clock", "8. Bystander Web"};
 
 // ====================================================
 // Companion Eyes Expressions
@@ -2181,11 +2181,11 @@ void drawBioLeft() {
   displayL.setTextSize(1);
   displayL.setTextColor(SSD1306_WHITE);
   displayL.setCursor(38, 2);
-  displayL.print(F("CREATOR BIO"));
+  displayL.print(F("webpage"));
   displayL.setCursor(38, 12);
   displayL.print(F("Scan QR Code"));
   displayL.setCursor(38, 22);
-  displayL.print(F("ByStander Team"));
+  displayL.print(F("bystander web"));
 }
 
 // ====================================================
