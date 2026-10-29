@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creators Bio • ByStander (DeskBuddy)</title>
+  <meta name="description" content="Meet the creators of ByStander (DeskBuddy) - BK. Shivank (9F), C. Aarnav Gupta (9G), and K. Vipul Reddy (9F).">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070913;
+      --card-bg: rgba(14, 18, 36, 0.75);
+      --card-border: rgba(0, 245, 255, 0.22);
+      --accent-cyan: #00f5ff;
+      --accent-purple: #a855f7;
+      --accent-pink: #ec4899;
+      --accent-gold: #f59e0b;
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 245, 255, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.08) 0%, transparent 60%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1.2rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 780px;
+      margin: auto;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      background: rgba(0, 245, 255, 0.12);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 30%, var(--accent-cyan) 80%, var(--accent-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.6rem;
+    }
+
+    .header p {
+      color: var(--text-sub);
+      font-size: 1.05rem;
+      max-width: 580px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .creators-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1.3rem;
+      margin-bottom: 2.2rem;
+    }
+
+    .creator-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 1.6rem 1.4rem;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .creator-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .creator-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 15px 40px rgba(0, 245, 255, 0.22);
+    }
+
+    .creator-card:hover::before {
+      opacity: 1;
+    }
+
+    .avatar-wrapper {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 1.1rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 0 20px rgba(0, 245, 255, 0.25);
+    }
+
+    .avatar-1 {
+      background: linear-gradient(135deg, rgba(0, 245, 255, 0.2), rgba(168, 85, 247, 0.3));
+      border: 2px solid var(--accent-cyan);
+    }
+    .avatar-2 {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.3));
+      border: 2px solid var(--accent-purple);
+    }
+    .avatar-3 {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(0, 245, 255, 0.3));
+      border: 2px solid var(--accent-gold);
+    }
+
+    .creator-name {
+      font-size: 1.22rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: #fff;
+    }
+
+    .creator-class {
+      display: inline-block;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      background: rgba(0, 245, 255, 0.1);
+      padding: 0.2rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 245, 255, 0.25);
+      margin-bottom: 0.8rem;
+    }
+
+    .creator-role {
+      font-size: 0.88rem;
+      color: var(--text-sub);
+      line-height: 1.45;
+    }
+
+    .project-card {
+      background: rgba(14, 18, 36, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 1.8rem;
+      margin-bottom: 2rem;
+      backdrop-filter: blur(12px);
+    }
+
+    .project-card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .project-card p {
+      color: var(--text-sub);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 1.2rem;
+    }
+
+    .features-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.8rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: #e2e8f0;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 0.5rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .cta-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.85rem 1.6rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), #0099ff);
+      color: #070913;
+      box-shadow: 0 4px 20px rgba(0, 245, 255, 0.35);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 25px rgba(0, 245, 255, 0.55);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+      transform: translateY(-2px);
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 3rem;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      font-family: 'Fira Code', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="badge-pill">🤖 ByStander Engineering Team</div>
+      <h1>Project Creators</h1>
+      <p>Autonomous IoT Companion, Sphero Ollie Robot Pilot, and Focus System powered by ESP32.</p>
+    </div>
+
+    <!-- Creators Grid -->
+    <div class="creators-grid">
+      <!-- Creator 1 -->
+      <div class="creator-card">
+        <div class="avatar-wrapper avatar-1">⚡</div>
+        <h2 class="creator-name">BK. SHIVANK</h2>
+        <span class="creator-class">CLASS 9F</span>
+        <p class="creator-role">Lead Architect & Systems Engineer<br>ESP32 Firmware, Dual OLED Graphics & BLE Pilot</p>
+      </div>
+
+      <!-- Creator 2 -->
+      <div class="creator-card">
+        <div class="avatar-wrapper avatar-2">💻</div>
+        <h2 class="creator-name">C. AARNAV GUPTA</h2>
+        <span class="creator-class">CLASS 9G</span>
+        <p class="creator-role">Web Systems & Cloud Architect<br>Interactive Dashboard, Audio Synth & MQTT Bridge</p>
+      </div>
+
+      <!-- Creator 3 -->
+      <div class="creator-card">
+        <div class="avatar-wrapper avatar-3">🏎️</div>
+        <h2 class="creator-name">K. VIPUL REDDY</h2>
+        <span class="creator-class">CLASS 9F</span>
+        <p class="creator-role">Hardware & Robotics Integration<br>4x4 Keypad Matrix, BLE Protocol & Controls</p>
+      </div>
+    </div>
+
+    <!-- Project Highlights -->
+    <div class="project-card">
+      <h3>🚀 About ByStander</h3>
+      <p>
+        ByStander is an all-in-one IoT smart desk robot built on an ESP32 microcontroller with dual SSD1306 OLED displays, a 4x4 matrix keypad, cloud MQTT real-time synchronization, voice assistant interaction, and Bluetooth Low Energy driver for Sphero Ollie.
+      </p>
+      <div class="features-list">
+        <div class="feature-item"><span>👀</span> Dual 128x32 OLED Eyes</div>
+        <div class="feature-item"><span>⌨️</span> 4x4 Matrix Keypad</div>
+        <div class="feature-item"><span>🏎️</span> Sphero Ollie Pilot</div>
+        <div class="feature-item"><span>🎵</span> Spotify API Controller</div>
+        <div class="feature-item"><span>⏱️</span> Pomodoro Focus Hub</div>
+        <div class="feature-item"><span>🕒</span> NTP Real-Time Clock</div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="cta-group">
+      <a href="./" class="btn btn-primary">
+        <span>🌐</span> Open Live Dashboard
+      </a>
+      <a href="https://github.com/ShivankVibes/ByStander" target="_blank" rel="noopener" class="btn btn-secondary">
+        <span>⭐</span> View on GitHub
+      </a>
+    </div>
+
+    <div class="footer">
+      Built with ❤️ by BK. Shivank, C. Aarnav Gupta & K. Vipul Reddy
+    </div>
+  </div>
+</body>
+</html>

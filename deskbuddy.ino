@@ -1,17 +1,17 @@
 #include "web_page.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEClient.h>
-#include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include <BLEClient.h>
+#include <BLEDevice.h>
+#include <BLEScan.h>
+#include <BLEUtils.h>
 #include <HTTPClient.h>
 #include <Preferences.h>
+#include <PubSubClient.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <PubSubClient.h>
 #include <Wire.h>
 #include <base64.h>
 #include <time.h>
@@ -19,41 +19,40 @@
 Preferences preferences;
 
 // ====================================================
-// 31x31 QR Code Bitmap: Creator Bio (https://shivankvibes.github.io/ByStander/)
+// 29x29 QR Code Bitmap: Creator Bio (https://shivankvibes.github.io/ByStander/bio.html)
 // ====================================================
-const int QR_SIZE = 31;
+const int QR_WIDTH = 29;
+const int QR_HEIGHT = 29;
 const unsigned char qrBioBitmap[] PROGMEM = {
-  0x00, 0x00, 0x00, 0x00,
-  0x7F, 0x41, 0xF1, 0xFC,
-  0x41, 0x4C, 0x59, 0x04,
-  0x5D, 0x64, 0xFD, 0x74,
-  0x5D, 0x77, 0xD1, 0x74,
-  0x5D, 0x37, 0xC1, 0x74,
-  0x41, 0x72, 0x0D, 0x04,
-  0x7F, 0x55, 0x55, 0xFC,
-  0x00, 0x18, 0xAC, 0x00,
-  0x67, 0x14, 0x64, 0xBC,
-  0x44, 0x43, 0xF5, 0xFC,
-  0x2D, 0xF1, 0xA7, 0xC4,
-  0x64, 0x65, 0x69, 0x2C,
-  0x51, 0x88, 0x6A, 0x88,
-  0x52, 0x96, 0x41, 0xFC,
-  0x3D, 0x5E, 0xB4, 0x34,
-  0x4E, 0xC8, 0xF6, 0xCC,
-  0x7D, 0x55, 0xEE, 0x08,
-  0x56, 0xF1, 0xD1, 0xEC,
-  0x0F, 0x23, 0xC2, 0x94,
-  0x10, 0x55, 0x68, 0xCC,
-  0x6B, 0xAB, 0x3F, 0xE4,
-  0x00, 0x55, 0x7C, 0x44,
-  0x7F, 0x1F, 0x9D, 0x74,
-  0x41, 0x6A, 0x2C, 0x44,
-  0x5D, 0x56, 0xAF, 0xE4,
-  0x5D, 0x23, 0xB6, 0x04,
-  0x5D, 0x20, 0xA4, 0x3C,
-  0x41, 0x45, 0x35, 0x6C,
-  0x7F, 0x5B, 0xA5, 0x48,
-  0x00, 0x00, 0x00, 0x00
+  0xFE, 0x72, 0x23, 0xF8,
+  0x82, 0x1E, 0xAA, 0x08,
+  0xBA, 0x71, 0x1A, 0xE8,
+  0xBA, 0xBC, 0xCA, 0xE8,
+  0xBA, 0xA8, 0x9A, 0xE8,
+  0x82, 0x6A, 0x02, 0x08,
+  0xFE, 0xAA, 0xAB, 0xF8,
+  0x00, 0x40, 0xB8, 0x00,
+  0xC7, 0x7F, 0xD0, 0xC0,
+  0x44, 0x33, 0x79, 0xB0,
+  0xFF, 0xC3, 0xAC, 0x00,
+  0x69, 0xA3, 0x35, 0xC0,
+  0x13, 0x69, 0x12, 0x08,
+  0x05, 0xF2, 0x9B, 0x98,
+  0x36, 0x2D, 0x8B, 0xE0,
+  0xF8, 0xE2, 0x80, 0x28,
+  0xE2, 0x44, 0xC0, 0x60,
+  0xA8, 0x35, 0xBB, 0xB8,
+  0xE2, 0x99, 0xBD, 0xC8,
+  0x95, 0x6B, 0x36, 0x00,
+  0x93, 0x5F, 0x6F, 0xB8,
+  0x00, 0xB2, 0x68, 0xC0,
+  0xFE, 0xCD, 0xDA, 0xE0,
+  0x82, 0xD1, 0xB8, 0x90,
+  0xBA, 0x28, 0x9F, 0xD8,
+  0xBA, 0x7D, 0x74, 0x78,
+  0xBA, 0x21, 0xAB, 0xF0,
+  0x82, 0xD1, 0x07, 0x68,
+  0xFE, 0xDE, 0x56, 0xE0
 };
 
 // ====================================================
@@ -80,12 +79,10 @@ bool rightDisplayAvailable = false;
 const byte KEYPAD_ROWS = 4;
 const byte KEYPAD_COLS = 4;
 
-char keypadKeys[KEYPAD_ROWS][KEYPAD_COLS] = {
-  {'1', '2', '3', 'A'},
-  {'4', '5', '6', 'B'},
-  {'7', '8', '9', 'C'},
-  {'*', '0', '#', 'D'}
-};
+char keypadKeys[KEYPAD_ROWS][KEYPAD_COLS] = {{'1', '2', '3', 'A'},
+                                             {'4', '5', '6', 'B'},
+                                             {'7', '8', '9', 'C'},
+                                             {'*', '0', '#', 'D'}};
 
 // 4 Rows (Outputs): GPIO 13, 14, 27, 25
 byte rowPins[KEYPAD_ROWS] = {13, 14, 27, 25};
@@ -93,7 +90,8 @@ byte rowPins[KEYPAD_ROWS] = {13, 14, 27, 25};
 // 4 Columns (Inputs): GPIO 33, 32, 4, 23
 byte colPins[KEYPAD_COLS] = {33, 32, 4, 23};
 
-Keypad keypad = Keypad(makeKeymap(keypadKeys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
+Keypad keypad =
+    Keypad(makeKeymap(keypadKeys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
 
 char lastKeyPressed = ' ';
 unsigned long lastKeyPressTime = 0;
@@ -104,7 +102,7 @@ const int BUZZER_PIN = 26; // Audio Buzzer
 // WiFi & Embedded Web Server Configuration
 // ====================================================
 const char *apSSID =
-    "ByStander-WiFi";      // Hotspot name visible in phone/laptop WiFi settings
+    "ByStander-WiFi";    // Hotspot name visible in phone/laptop WiFi settings
 const char *apPass = ""; // Open network (no password needed to connect)
 char wifiSSID[32] = "Airtel_402"; // Fallback/Default router SSID
 char wifiPass[64] = "9550175678"; // Fallback/Default router password
@@ -115,10 +113,10 @@ WebServer server(80);
 // ====================================================
 // Cloud MQTT Bridge Configuration (24/7 HTTPS Web Sync)
 // ====================================================
-const char* mqttServer = "broker.emqx.io";
+const char *mqttServer = "broker.emqx.io";
 const int mqttPort = 1883;
-const char* mqttTopicCmd = "bystander/2b4fcd/cmd";
-const char* mqttTopicStatus = "bystander/2b4fcd/status";
+const char *mqttTopicCmd = "bystander/2b4fcd/cmd";
+const char *mqttTopicStatus = "bystander/2b4fcd/status";
 
 WiFiClient mqttTcpClient;
 PubSubClient mqttClient(mqttTcpClient);
@@ -216,37 +214,41 @@ static BLEUUID robotControlServiceUUID("22bb746f-2ba0-7554-2d6f-726568705327");
 static BLEUUID commandCharUUID("22bb746f-2ba1-7554-2d6f-726568705327");
 static BLEUUID responseCharUUID("22bb746f-2ba6-7554-2d6f-726568705327");
 
-BLEClient* pOllieClient = nullptr;
-BLERemoteCharacteristic* pOllieAntiDosChar = nullptr;
-BLERemoteCharacteristic* pOllieTxPowerChar = nullptr;
-BLERemoteCharacteristic* pOllieWakeChar = nullptr;
-BLERemoteCharacteristic* pOllieCmdChar = nullptr;
-BLERemoteCharacteristic* pOllieRespChar = nullptr;
+BLEClient *pOllieClient = nullptr;
+BLERemoteCharacteristic *pOllieAntiDosChar = nullptr;
+BLERemoteCharacteristic *pOllieTxPowerChar = nullptr;
+BLERemoteCharacteristic *pOllieWakeChar = nullptr;
+BLERemoteCharacteristic *pOllieCmdChar = nullptr;
+BLERemoteCharacteristic *pOllieRespChar = nullptr;
 
-BLEAdvertisedDevice* foundOllieDevice = nullptr;
+BLEAdvertisedDevice *foundOllieDevice = nullptr;
 bool ollieConnected = false;
 int ollieBatteryPercent = 90;
 int ollieColorIndex = 0;
 const int TOTAL_OLLIE_COLORS = 5;
-const char *ollieColors[TOTAL_OLLIE_COLORS] = {"Cyan", "Purple", "Green", "Red", "Yellow"};
+const char *ollieColors[TOTAL_OLLIE_COLORS] = {"Cyan", "Purple", "Green", "Red",
+                                               "Yellow"};
 const uint8_t ollieColorRGB[TOTAL_OLLIE_COLORS][3] = {
-  { 0, 229, 255 },   // Cyan
-  { 179, 136, 255 }, // Purple
-  { 0, 230, 118 },   // Green
-  { 255, 23, 68 },    // Red
-  { 255, 214, 0 }     // Yellow
+    {0, 229, 255},   // Cyan
+    {179, 136, 255}, // Purple
+    {0, 230, 118},   // Green
+    {255, 23, 68},   // Red
+    {255, 214, 0}    // Yellow
 };
 
 uint8_t olliePacketSeq = 0;
 unsigned long lastOllieKeepAlive = 0;
 
-void ollieNotifyCallback(BLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
+void ollieNotifyCallback(BLERemoteCharacteristic *pChar, uint8_t *pData,
+                         size_t length, bool isNotify) {
   // Asynchronous response / battery / sensor notification from Ollie
 }
 
 // Send Sphero Command Packet (withResponse = true is CRITICAL!)
-void sendSpheroPacket(uint8_t did, uint8_t cid, uint8_t* data, uint8_t dataLen, bool withResponse = true) {
-  if (!pOllieCmdChar || !ollieConnected) return;
+void sendSpheroPacket(uint8_t did, uint8_t cid, uint8_t *data, uint8_t dataLen,
+                      bool withResponse = true) {
+  if (!pOllieCmdChar || !ollieConnected)
+    return;
   if (pOllieClient && !pOllieClient->isConnected()) {
     ollieConnected = false;
     return;
@@ -273,27 +275,23 @@ void sendSpheroPacket(uint8_t did, uint8_t cid, uint8_t* data, uint8_t dataLen, 
 
 void setOllieColor(uint8_t r, uint8_t g, uint8_t b) {
   Serial.printf("[Ollie] Color: R=%d G=%d B=%d\n", r, g, b);
-  uint8_t colorData[] = { r, g, b, 0x01 };
+  uint8_t colorData[] = {r, g, b, 0x01};
   sendSpheroPacket(0x02, 0x20, colorData, sizeof(colorData));
 }
 
 void setOllieBackLed(uint8_t brightness) {
-  uint8_t ledData[] = { brightness };
+  uint8_t ledData[] = {brightness};
   sendSpheroPacket(0x02, 0x21, ledData, sizeof(ledData));
 }
 
 void setOllieStabilization(bool enable) {
-  uint8_t stabData[] = { (uint8_t)(enable ? 0x01 : 0x00) };
+  uint8_t stabData[] = {(uint8_t)(enable ? 0x01 : 0x00)};
   sendSpheroPacket(0x02, 0x02, stabData, sizeof(stabData));
 }
 
 void rollOllie(uint8_t speed, uint16_t heading, uint8_t state) {
-  uint8_t rollData[] = {
-    speed,
-    (uint8_t)((heading >> 8) & 0xFF),
-    (uint8_t)(heading & 0xFF),
-    state
-  };
+  uint8_t rollData[] = {speed, (uint8_t)((heading >> 8) & 0xFF),
+                        (uint8_t)(heading & 0xFF), state};
   sendSpheroPacket(0x02, 0x30, rollData, sizeof(rollData), true);
 }
 
@@ -304,21 +302,24 @@ void stopOllie() {
 
 // Drive specific distance in centimeters!
 void rollOllieDistanceCm(int distanceCm, uint16_t heading) {
-  if (distanceCm < 5) distanceCm = 5;
-  if (distanceCm > 200) distanceCm = 200;
+  if (distanceCm < 5)
+    distanceCm = 5;
+  if (distanceCm > 200)
+    distanceCm = 200;
 
   // Approx 55ms per centimeter at speed 80
   unsigned long durationMs = distanceCm * 55;
 
-  Serial.printf("[Ollie] Rolling %d cm (heading %d) for %lu ms...\n", distanceCm, heading, durationMs);
+  Serial.printf("[Ollie] Rolling %d cm (heading %d) for %lu ms...\n",
+                distanceCm, heading, durationMs);
   setOllieColor(0, 255, 0); // Green while driving
   rollOllie(80, heading, 1);
   delay(durationMs);
   stopOllie();
 
   // Restore current color
-  setOllieColor(ollieColorRGB[ollieColorIndex][0], 
-                ollieColorRGB[ollieColorIndex][1], 
+  setOllieColor(ollieColorRGB[ollieColorIndex][0],
+                ollieColorRGB[ollieColorIndex][1],
                 ollieColorRGB[ollieColorIndex][2]);
 }
 
@@ -327,30 +328,31 @@ void spinTrick() {
   setOllieStabilization(false);
   setOllieColor(255, 0, 255); // Magenta
 
-  uint8_t rawMotor[] = { 0x01, 110, 0x02, 110 }; // Left fwd, right rev
+  uint8_t rawMotor[] = {0x01, 110, 0x02, 110}; // Left fwd, right rev
   sendSpheroPacket(0x02, 0x33, rawMotor, sizeof(rawMotor));
   delay(650);
 
-  uint8_t stopMotor[] = { 0x00, 0, 0x00, 0 };
+  uint8_t stopMotor[] = {0x00, 0, 0x00, 0};
   sendSpheroPacket(0x02, 0x33, stopMotor, sizeof(stopMotor));
   setOllieStabilization(true);
 
-  setOllieColor(ollieColorRGB[ollieColorIndex][0], 
-                ollieColorRGB[ollieColorIndex][1], 
+  setOllieColor(ollieColorRGB[ollieColorIndex][0],
+                ollieColorRGB[ollieColorIndex][1],
                 ollieColorRGB[ollieColorIndex][2]);
 }
 
-void sendOllieKeepAlive() {
-  sendSpheroPacket(0x00, 0x01, nullptr, 0, true);
-}
+void sendOllieKeepAlive() { sendSpheroPacket(0x00, 0x01, nullptr, 0, true); }
 
-class ByStanderOllieScanCallbacks: public BLEAdvertisedDeviceCallbacks {
+class ByStanderOllieScanCallbacks : public BLEAdvertisedDeviceCallbacks {
   void onResult(BLEAdvertisedDevice advertisedDevice) {
-    if (foundOllieDevice != nullptr) return;
+    if (foundOllieDevice != nullptr)
+      return;
     String name = advertisedDevice.getName().c_str();
-    if (name.startsWith("2B-") || name.indexOf("Ollie") != -1 || advertisedDevice.getAddress().equals(targetOllieAddress)) {
+    if (name.startsWith("2B-") || name.indexOf("Ollie") != -1 ||
+        advertisedDevice.getAddress().equals(targetOllieAddress)) {
       foundOllieDevice = new BLEAdvertisedDevice(advertisedDevice);
-      Serial.printf("[BLE Scan] Found Ollie: %s\n", advertisedDevice.getAddress().toString().c_str());
+      Serial.printf("[BLE Scan] Found Ollie: %s\n",
+                    advertisedDevice.getAddress().toString().c_str());
     }
   }
 };
@@ -358,21 +360,25 @@ class ByStanderOllieScanCallbacks: public BLEAdvertisedDeviceCallbacks {
 bool setupOllieServices() {
   Serial.println(F("[BLE] Linking Ollie Services..."));
 
-  BLERemoteService* pAntiDosService = pOllieClient->getService(antiDosServiceUUID);
-  if (!pAntiDosService) return false;
+  BLERemoteService *pAntiDosService =
+      pOllieClient->getService(antiDosServiceUUID);
+  if (!pAntiDosService)
+    return false;
 
   pOllieAntiDosChar = pAntiDosService->getCharacteristic(antiDosCharUUID);
   pOllieTxPowerChar = pAntiDosService->getCharacteristic(txPowerCharUUID);
   pOllieWakeChar = pAntiDosService->getCharacteristic(wakeCharUUID);
-  if (!pOllieAntiDosChar || !pOllieTxPowerChar || !pOllieWakeChar) return false;
+  if (!pOllieAntiDosChar || !pOllieTxPowerChar || !pOllieWakeChar)
+    return false;
 
   // 1. Anti-DoS Unlock "011i3"
-  const char* antiDosKey = "011i3";
-  pOllieAntiDosChar->writeValue((uint8_t*)antiDosKey, strlen(antiDosKey), true);
+  const char *antiDosKey = "011i3";
+  pOllieAntiDosChar->writeValue((uint8_t *)antiDosKey, strlen(antiDosKey),
+                                true);
   delay(120);
 
   // 2. Set TX Power
-  uint8_t txPower2[] = { 0x00, 0x07 };
+  uint8_t txPower2[] = {0x00, 0x07};
   pOllieTxPowerChar->writeValue(txPower2, 2, true);
   delay(120);
 
@@ -382,11 +388,14 @@ bool setupOllieServices() {
   delay(250);
 
   // 4. Robot Control Service
-  BLERemoteService* pControlService = pOllieClient->getService(robotControlServiceUUID);
-  if (!pControlService) return false;
+  BLERemoteService *pControlService =
+      pOllieClient->getService(robotControlServiceUUID);
+  if (!pControlService)
+    return false;
 
   pOllieCmdChar = pControlService->getCharacteristic(commandCharUUID);
-  if (!pOllieCmdChar) return false;
+  if (!pOllieCmdChar)
+    return false;
 
   pOllieRespChar = pControlService->getCharacteristic(responseCharUUID);
   if (pOllieRespChar && pOllieRespChar->canNotify()) {
@@ -400,26 +409,27 @@ bool setupOllieServices() {
 
   setOllieStabilization(true);
   delay(100);
-  setOllieColor(ollieColorRGB[ollieColorIndex][0], 
-                ollieColorRGB[ollieColorIndex][1], 
+  setOllieColor(ollieColorRGB[ollieColorIndex][0],
+                ollieColorRGB[ollieColorIndex][1],
                 ollieColorRGB[ollieColorIndex][2]);
   setOllieBackLed(255);
   return true;
 }
 
 class ByStanderClientCallbacks : public BLEClientCallbacks {
-  void onConnect(BLEClient* pclient) {
+  void onConnect(BLEClient *pclient) {
     Serial.println(F("[BLE] Ollie connected!"));
     ollieConnected = true;
   }
-  void onDisconnect(BLEClient* pclient) {
+  void onDisconnect(BLEClient *pclient) {
     Serial.println(F("[BLE] Ollie disconnected!"));
     ollieConnected = false;
   }
 };
 
 bool connectToOllie() {
-  if (ollieConnected && pOllieClient && pOllieClient->isConnected()) return true;
+  if (ollieConnected && pOllieClient && pOllieClient->isConnected())
+    return true;
 
   if (!pOllieClient) {
     pOllieClient = BLEDevice::createClient();
@@ -428,7 +438,8 @@ bool connectToOllie() {
 
   if (foundOllieDevice != nullptr) {
     BLEAddress addr = foundOllieDevice->getAddress();
-    esp_ble_addr_type_t addrType = (esp_ble_addr_type_t)foundOllieDevice->getAddressType();
+    esp_ble_addr_type_t addrType =
+        (esp_ble_addr_type_t)foundOllieDevice->getAddressType();
     if (pOllieClient->connect(addr, addrType)) {
       return setupOllieServices();
     }
@@ -506,6 +517,7 @@ void drawSpotifyRight();
 void drawSystemInfoRight();
 void drawClockRight();
 void drawBioRight();
+void drawBioLeft();
 
 void handleKeypad();
 void processKeyEvent(char key);
@@ -601,7 +613,8 @@ void setup() {
 
   // Launch ByStander-WiFi Hotspot (SoftAP) + Station Mode
   WiFi.mode(WIFI_AP_STA);
-  WiFi.setSleep(false); // Crucial for ESP32 WiFi + BLE Coexistence without packet loss!
+  WiFi.setSleep(
+      false); // Crucial for ESP32 WiFi + BLE Coexistence without packet loss!
   WiFi.softAP(apSSID, apPass);
   IPAddress apIP = WiFi.softAPIP();
   espIPAddress = apIP.toString();
@@ -646,7 +659,8 @@ void setup() {
 
   // Initialize BLE & auto-connect to Sphero Ollie (2B-4FCD)
   BLEDevice::init("ByStander-2.0");
-  Serial.println(F("[BLE] Attempting auto-connection to Sphero Ollie (2B-4FCD)..."));
+  Serial.println(
+      F("[BLE] Attempting auto-connection to Sphero Ollie (2B-4FCD)..."));
   connectToOllie();
 
   if (rightDisplayAvailable) {
@@ -679,7 +693,8 @@ void loop() {
   updateAsyncState();
 
   // Sphero Ollie 2.5-second keep-alive ping
-  if (ollieConnected && pOllieClient && pOllieClient->isConnected() && millis() - lastOllieKeepAlive >= 2500) {
+  if (ollieConnected && pOllieClient && pOllieClient->isConnected() &&
+      millis() - lastOllieKeepAlive >= 2500) {
     lastOllieKeepAlive = millis();
     sendOllieKeepAlive();
   }
@@ -738,9 +753,10 @@ void setupWebServer() {
                                       ? liveSpotifyTotalSec
                                       : spotifyTrackLengths[spotifyTrackIdx]);
     json += "},";
-    json += "\"ollie\":{\"connected\":" + String(ollieConnected ? "true" : "false") +
-            ",\"battery\":" + String(ollieBatteryPercent) +
-            ",\"color\":\"" + String(ollieColors[ollieColorIndex]) + "\"},";
+    json += "\"ollie\":{\"connected\":" +
+            String(ollieConnected ? "true" : "false") +
+            ",\"battery\":" + String(ollieBatteryPercent) + ",\"color\":\"" +
+            String(ollieColors[ollieColorIndex]) + "\"},";
     json +=
         "\"pomodoro\":{\"running\":" + String(timerRunning ? "true" : "false") +
         ",\"remaining\":" + String(timerRemainingSeconds) + "}";
@@ -826,51 +842,59 @@ void setupWebServer() {
     String action = server.hasArg("action") ? server.arg("action") : "";
 
     if (action == "move_cm") {
-      int dist = server.hasArg("distance") ? server.arg("distance").toInt() : 20;
-      int heading = server.hasArg("heading") ? server.arg("heading").toInt() : 0;
+      int dist =
+          server.hasArg("distance") ? server.arg("distance").toInt() : 20;
+      int heading =
+          server.hasArg("heading") ? server.arg("heading").toInt() : 0;
       rollOllieDistanceCm(dist, heading);
-      server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"move_cm\",\"distance\":" + String(dist) + "}");
+      server.send(200, "application/json",
+                  "{\"status\":\"ok\",\"action\":\"move_cm\",\"distance\":" +
+                      String(dist) + "}");
       return;
-    }
-    else if (action == "roll" || action == "drive") {
+    } else if (action == "roll" || action == "drive") {
       int speed = server.hasArg("speed") ? server.arg("speed").toInt() : 80;
-      int heading = server.hasArg("heading") ? server.arg("heading").toInt() : 0;
+      int heading =
+          server.hasArg("heading") ? server.arg("heading").toInt() : 0;
       rollOllie(speed, heading, 1);
-      server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"roll\"}");
+      server.send(200, "application/json",
+                  "{\"status\":\"ok\",\"action\":\"roll\"}");
       return;
-    }
-    else if (action == "stop") {
+    } else if (action == "stop") {
       stopOllie();
-      server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"stop\"}");
+      server.send(200, "application/json",
+                  "{\"status\":\"ok\",\"action\":\"stop\"}");
       return;
-    }
-    else if (action == "spin") {
+    } else if (action == "spin") {
       spinTrick();
-      server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"spin\"}");
+      server.send(200, "application/json",
+                  "{\"status\":\"ok\",\"action\":\"spin\"}");
       return;
-    }
-    else if (action == "color") {
+    } else if (action == "color") {
       if (server.hasArg("name")) {
         String col = server.arg("name");
         for (int i = 0; i < TOTAL_OLLIE_COLORS; i++) {
           if (col.equalsIgnoreCase(ollieColors[i])) {
             ollieColorIndex = i;
-            setOllieColor(ollieColorRGB[i][0], ollieColorRGB[i][1], ollieColorRGB[i][2]);
+            setOllieColor(ollieColorRGB[i][0], ollieColorRGB[i][1],
+                          ollieColorRGB[i][2]);
             break;
           }
         }
-      } else if (server.hasArg("r") && server.hasArg("g") && server.hasArg("b")) {
+      } else if (server.hasArg("r") && server.hasArg("g") &&
+                 server.hasArg("b")) {
         int r = server.arg("r").toInt();
         int g = server.arg("g").toInt();
         int b = server.arg("b").toInt();
         setOllieColor(r, g, b);
       }
-      server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"color\"}");
+      server.send(200, "application/json",
+                  "{\"status\":\"ok\",\"action\":\"color\"}");
       return;
-    }
-    else if (action == "connect") {
+    } else if (action == "connect") {
       bool ok = connectToOllie();
-      server.send(200, "application/json", "{\"status\":\"" + String(ok ? "connected" : "failed") + "\"}");
+      server.send(200, "application/json",
+                  "{\"status\":\"" + String(ok ? "connected" : "failed") +
+                      "\"}");
       return;
     }
 
@@ -972,9 +996,9 @@ void setupWebServer() {
         espIPAddress = WiFi.localIP().toString();
         soundVictory();
         resp += "<h2 style='color:#00e676;'>Connected to " + newSSID + "!</h2>";
-        resp +=
-            "<p>ByStander Local IP: <b><a style='color:#00e5ff;' href='http://" +
-            espIPAddress + "'>" + espIPAddress + "</a></b></p>";
+        resp += "<p>ByStander Local IP: <b><a style='color:#00e5ff;' "
+                "href='http://" +
+                espIPAddress + "'>" + espIPAddress + "</a></b></p>";
         resp += "<p>Saved to flash memory! You can now switch your "
                 "laptop/phone to <b>" +
                 newSSID + "</b>.</p>";
@@ -1006,14 +1030,16 @@ void setupWebServer() {
         "<!DOCTYPE html><html><body "
         "style='font-family:sans-serif;background:#0d1224;color:#fff;text-"
         "align:center;padding:40px;'><h2 style='color:#ff5252;'>WiFi Reset to "
-        "Hotspot!</h2><p>Broadcasting <b>ByStander-WiFi</b> (192.168.4.1).</p><a "
+        "Hotspot!</h2><p>Broadcasting <b>ByStander-WiFi</b> "
+        "(192.168.4.1).</p><a "
         "style='color:#00e5ff' href='/'>Back to Portal</a></body></html>");
   });
 
   server.on("/", HTTP_GET, []() {
     sendCorsHeader();
     server.sendHeader("Content-Encoding", "gzip");
-    server.send_P(200, "text/html", (const char*)INDEX_HTML_GZ, INDEX_HTML_GZ_LEN);
+    server.send_P(200, "text/html", (const char *)INDEX_HTML_GZ,
+                  INDEX_HTML_GZ_LEN);
   });
 
   server.onNotFound([]() {
@@ -1023,7 +1049,8 @@ void setupWebServer() {
     } else {
       sendCorsHeader();
       server.sendHeader("Content-Encoding", "gzip");
-      server.send_P(200, "text/html", (const char*)INDEX_HTML_GZ, INDEX_HTML_GZ_LEN);
+      server.send_P(200, "text/html", (const char *)INDEX_HTML_GZ,
+                    INDEX_HTML_GZ_LEN);
     }
   });
 
@@ -1279,7 +1306,8 @@ void processKeyEvent(char key) {
 
   // Immediately broadcast key event to MQTT for Web UI live animation
   if (mqttClient.connected()) {
-    String msg = "{\"key\":\"" + String(key) + "\",\"mode\":" + String(currentMode) + "}";
+    String msg = "{\"key\":\"" + String(key) +
+                 "\",\"mode\":" + String(currentMode) + "}";
     mqttClient.publish(mqttTopicStatus, msg.c_str());
   }
 
@@ -1348,8 +1376,8 @@ void processKeyEvent(char key) {
     } else if (key == '3') {
       // Quick Ollie Color Cycle
       ollieColorIndex = (ollieColorIndex + 1) % TOTAL_OLLIE_COLORS;
-      setOllieColor(ollieColorRGB[ollieColorIndex][0], 
-                    ollieColorRGB[ollieColorIndex][1], 
+      setOllieColor(ollieColorRGB[ollieColorIndex][0],
+                    ollieColorRGB[ollieColorIndex][1],
                     ollieColorRGB[ollieColorIndex][2]);
     }
     break;
@@ -1357,7 +1385,8 @@ void processKeyEvent(char key) {
   case MODE_MENU:
     if (key == '2' || key == '4') {
       // Scroll Up
-      selectedMenuItem = (selectedMenuItem + TOTAL_MENU_ITEMS - 1) % TOTAL_MENU_ITEMS;
+      selectedMenuItem =
+          (selectedMenuItem + TOTAL_MENU_ITEMS - 1) % TOTAL_MENU_ITEMS;
       soundChirp();
     } else if (key == '8' || key == '6') {
       // Scroll Down
@@ -1366,14 +1395,31 @@ void processKeyEvent(char key) {
     } else if (key == '#' || key == '5') {
       soundCoin();
       switch (selectedMenuItem) {
-      case 0: switchMode(MODE_COMPANION); break;
-      case 1: switchMode(MODE_POMODORO); break;
-      case 2: switchMode(MODE_WHEELS); break;
-      case 3: reflexState = REFLEX_WAIT_START; switchMode(MODE_REFLEX_GAME); break;
-      case 4: switchMode(MODE_SPOTIFY); break;
-      case 5: switchMode(MODE_SYSTEM_INFO); break;
-      case 6: switchMode(MODE_CLOCK); break;
-      case 7: switchMode(MODE_BIO); break;
+      case 0:
+        switchMode(MODE_COMPANION);
+        break;
+      case 1:
+        switchMode(MODE_POMODORO);
+        break;
+      case 2:
+        switchMode(MODE_WHEELS);
+        break;
+      case 3:
+        reflexState = REFLEX_WAIT_START;
+        switchMode(MODE_REFLEX_GAME);
+        break;
+      case 4:
+        switchMode(MODE_SPOTIFY);
+        break;
+      case 5:
+        switchMode(MODE_SYSTEM_INFO);
+        break;
+      case 6:
+        switchMode(MODE_CLOCK);
+        break;
+      case 7:
+        switchMode(MODE_BIO);
+        break;
       }
     } else if (key == '*') {
       soundChirp();
@@ -1409,8 +1455,8 @@ void processKeyEvent(char key) {
     } else if (key == '3') {
       // Color Cycle
       ollieColorIndex = (ollieColorIndex + 1) % TOTAL_OLLIE_COLORS;
-      setOllieColor(ollieColorRGB[ollieColorIndex][0], 
-                    ollieColorRGB[ollieColorIndex][1], 
+      setOllieColor(ollieColorRGB[ollieColorIndex][0],
+                    ollieColorRGB[ollieColorIndex][1],
                     ollieColorRGB[ollieColorIndex][2]);
       soundHappy();
     } else if (key == '9') {
@@ -1435,7 +1481,10 @@ void processKeyEvent(char key) {
     if (key == '5' || key == '#') {
       timerRunning = !timerRunning;
       lastTimerTick = millis();
-      if (timerRunning) soundHappy(); else soundChirp();
+      if (timerRunning)
+        soundHappy();
+      else
+        soundChirp();
     } else if (key == '1') {
       timerTotalSeconds = timerRemainingSeconds = 25 * 60;
       soundChirp();
@@ -1459,14 +1508,22 @@ void processKeyEvent(char key) {
       } else {
         spotifyPlaying = !spotifyPlaying;
       }
-      if (spotifyPlaying || liveSpotifyPlaying) soundHappy(); else soundChirp();
+      if (spotifyPlaying || liveSpotifyPlaying)
+        soundHappy();
+      else
+        soundChirp();
     } else if (key == '6' || key == '3') {
-      if (spotifyApiActive) sendSpotifyCommand("next", "POST");
-      else spotifyTrackIdx = (spotifyTrackIdx + 1) % TOTAL_SPOTIFY_TRACKS;
+      if (spotifyApiActive)
+        sendSpotifyCommand("next", "POST");
+      else
+        spotifyTrackIdx = (spotifyTrackIdx + 1) % TOTAL_SPOTIFY_TRACKS;
       soundChirp();
     } else if (key == '4' || key == '1') {
-      if (spotifyApiActive) sendSpotifyCommand("previous", "POST");
-      else spotifyTrackIdx = (spotifyTrackIdx + TOTAL_SPOTIFY_TRACKS - 1) % TOTAL_SPOTIFY_TRACKS;
+      if (spotifyApiActive)
+        sendSpotifyCommand("previous", "POST");
+      else
+        spotifyTrackIdx =
+            (spotifyTrackIdx + TOTAL_SPOTIFY_TRACKS - 1) % TOTAL_SPOTIFY_TRACKS;
       soundChirp();
     } else if (key == '*' || key == '0') {
       switchMode(MODE_MENU);
@@ -1486,7 +1543,8 @@ void processKeyEvent(char key) {
       reflexReactionTime = millis() - reflexCueStartTime;
       reflexState = REFLEX_RESULT;
       soundVictory();
-    } else if (reflexState == REFLEX_RESULT || reflexState == REFLEX_FALSE_START) {
+    } else if (reflexState == REFLEX_RESULT ||
+               reflexState == REFLEX_FALSE_START) {
       if (key == '*' || key == '#') {
         switchMode(MODE_MENU);
       } else {
@@ -1512,17 +1570,21 @@ void handleKeypad() {
 
 // Backwards-compatible Web API button handler (/api/button?btn=1,2,3)
 void processButtonEvent(int btnId) {
-  if (btnId == 1) processKeyEvent('4');
-  else if (btnId == 2) processKeyEvent('5');
-  else if (btnId == 3) processKeyEvent('6');
+  if (btnId == 1)
+    processKeyEvent('4');
+  else if (btnId == 2)
+    processKeyEvent('5');
+  else if (btnId == 3)
+    processKeyEvent('6');
 }
 
 // ====================================================
 // CLOUD MQTT MESSAGE HANDLER & MAINTENANCE
 // ====================================================
-void onMqttMessage(char* topic, byte* payload, unsigned int length) {
+void onMqttMessage(char *topic, byte *payload, unsigned int length) {
   char msg[256];
-  if (length >= sizeof(msg)) length = sizeof(msg) - 1;
+  if (length >= sizeof(msg))
+    length = sizeof(msg) - 1;
   memcpy(msg, payload, length);
   msg[length] = '\0';
   String json = String(msg);
@@ -1537,7 +1599,8 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     return;
   } else if (action == "move_cm") {
     int dist = jsonExtractLong(json, "distance");
-    if (dist <= 0) dist = 20;
+    if (dist <= 0)
+      dist = 20;
     int heading = jsonExtractLong(json, "heading");
     rollOllieDistanceCm(dist, heading);
   } else if (action == "roll") {
@@ -1554,7 +1617,8 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
       for (int i = 0; i < TOTAL_OLLIE_COLORS; i++) {
         if (col.equalsIgnoreCase(ollieColors[i])) {
           ollieColorIndex = i;
-          setOllieColor(ollieColorRGB[i][0], ollieColorRGB[i][1], ollieColorRGB[i][2]);
+          setOllieColor(ollieColorRGB[i][0], ollieColorRGB[i][1],
+                        ollieColorRGB[i][2]);
           break;
         }
       }
@@ -1566,21 +1630,27 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
     }
   } else if (action == "spotify") {
     String sub = jsonExtractString(json, "cmd");
-    if (sub == "play") sendSpotifyCommand("play", "PUT");
-    else if (sub == "pause") sendSpotifyCommand("pause", "PUT");
-    else if (sub == "next") sendSpotifyCommand("next", "POST");
-    else if (sub == "prev") sendSpotifyCommand("previous", "POST");
+    if (sub == "play")
+      sendSpotifyCommand("play", "PUT");
+    else if (sub == "pause")
+      sendSpotifyCommand("pause", "PUT");
+    else if (sub == "next")
+      sendSpotifyCommand("next", "POST");
+    else if (sub == "prev")
+      sendSpotifyCommand("previous", "POST");
   }
 }
 
 void maintainMqtt() {
-  if (!wifiConnected) return;
+  if (!wifiConnected)
+    return;
 
   unsigned long now = millis();
   if (!mqttClient.connected()) {
     if (now - lastMqttReconnectAttempt > 5000) {
       lastMqttReconnectAttempt = now;
-      String clientId = "ByStander-ESP32-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+      String clientId =
+          "ByStander-ESP32-" + String((uint32_t)ESP.getEfuseMac(), HEX);
       if (mqttClient.connect(clientId.c_str())) {
         Serial.println(F("[MQTT] Connected to broker.emqx.io!"));
         mqttClient.subscribe(mqttTopicCmd);
@@ -1595,7 +1665,8 @@ void maintainMqtt() {
       String status = "{";
       status += "\"mode\":" + String(currentMode) + ",";
       status += "\"key\":\"" + String(lastKeyPressed) + "\",";
-      status += "\"ollie\":{\"connected\":" + String(ollieConnected ? "true" : "false") +
+      status += "\"ollie\":{\"connected\":" +
+                String(ollieConnected ? "true" : "false") +
                 ",\"battery\":" + String(ollieBatteryPercent) +
                 ",\"color\":\"" + String(ollieColors[ollieColorIndex]) + "\"},";
       status += "\"wifi\":{\"ip\":\"" + espIPAddress + "\"}";
@@ -1678,7 +1749,8 @@ void updateAsyncState() {
   }
 
   // Spotify Web API live polling: only poll when actively in Spotify mode!
-  if (currentMode == MODE_SPOTIFY && wifiConnected && (now - lastSpotifyApiPoll > 3500)) {
+  if (currentMode == MODE_SPOTIFY && wifiConnected &&
+      (now - lastSpotifyApiPoll > 3500)) {
     lastSpotifyApiPoll = now;
     pollSpotifyCurrentlyPlaying();
   }
@@ -1689,9 +1761,13 @@ void updateAsyncState() {
 // ====================================================
 void renderDisplays() {
   if (leftDisplayAvailable && rightDisplayAvailable) {
-    // Left Screen: Companion Eye
+    // Left Screen: Companion Eye (or Dedicated QR Code in Bio Mode)
     displayL.clearDisplay();
-    drawEyeOnDisplay(displayL, true);
+    if (currentMode == MODE_BIO) {
+      drawBioLeft();
+    } else {
+      drawEyeOnDisplay(displayL, true);
+    }
     drawLiveButtonIndicators(displayL);
     displayL.display();
 
@@ -1729,7 +1805,8 @@ void renderDisplays() {
 // GRAPHICS: LIVE BUTTON STATUS INDICATOR (Top-Right)
 // ====================================================
 void drawLiveButtonIndicators(Adafruit_SSD1306 &disp) {
-  if (millis() - lastKeyPressTime < 2200 && lastKeyPressed != ' ' && lastKeyPressed != 0) {
+  if (millis() - lastKeyPressTime < 2200 && lastKeyPressed != ' ' &&
+      lastKeyPressed != 0) {
     disp.fillRoundRect(86, 0, 42, 10, 2, SSD1306_WHITE);
     disp.setTextSize(1);
     disp.setTextColor(SSD1306_BLACK);
@@ -2093,23 +2170,55 @@ void drawClockRight() {
 }
 
 // ====================================================
-// RIGHT SCREEN: CREATOR BIO & QR CODE
+// LEFT SCREEN: CREATOR BIO QR CODE (bio.html)
+// ====================================================
+void drawBioLeft() {
+  // White quiet-zone card for 29x29 QR code (31x32)
+  displayL.fillRect(2, 0, 31, 32, SSD1306_WHITE);
+  displayL.drawBitmap(3, 1, qrBioBitmap, 29, 29, SSD1306_BLACK, SSD1306_WHITE);
+
+  // High-contrast prompt text on the right side of the left display
+  displayL.setTextSize(1);
+  displayL.setTextColor(SSD1306_WHITE);
+  displayL.setCursor(38, 2);
+  displayL.print(F("CREATOR BIO"));
+  displayL.setCursor(38, 12);
+  displayL.print(F("Scan QR Code"));
+  displayL.setCursor(38, 22);
+  displayL.print(F("ByStander Team"));
+}
+
+// ====================================================
+// RIGHT SCREEN: CREATOR TEAM MEMBERS & CLASSES
 // ====================================================
 void drawBioRight() {
-  // Quiet zone background for QR code (33x32)
-  displayR.fillRect(0, 0, 33, 32, SSD1306_WHITE);
-  // High-contrast QR bitmap (31x31)
-  displayR.drawBitmap(1, 1, qrBioBitmap, 31, 31, SSD1306_BLACK, SSD1306_WHITE);
+  if (!leftDisplayAvailable) {
+    // Single-screen fallback: QR on left, names on right
+    displayR.fillRect(0, 0, 31, 32, SSD1306_WHITE);
+    displayR.drawBitmap(1, 1, qrBioBitmap, 29, 29, SSD1306_BLACK, SSD1306_WHITE);
+    displayR.setTextSize(1);
+    displayR.setTextColor(SSD1306_WHITE);
+    displayR.setCursor(34, 1);
+    displayR.print(F("BK.SHIVANK 9F"));
+    displayR.setCursor(34, 12);
+    displayR.print(F("C.AARNAV G.9G"));
+    displayR.setCursor(34, 23);
+    displayR.print(F("K.VIPUL R. 9F"));
+    return;
+  }
 
-  // Bio info text on the right
+  // Dual-screen showcase: full right OLED for creators!
   displayR.setTextSize(1);
   displayR.setTextColor(SSD1306_WHITE);
-  displayR.setCursor(37, 2);
-  displayR.print(F("CREATOR BIO"));
-  displayR.setCursor(37, 13);
-  displayR.print(F("ByStander Team"));
-  displayR.setCursor(37, 23);
-  displayR.print(F("Scan to view >"));
+
+  displayR.setCursor(0, 2);
+  displayR.print(F("BK.SHIVANK      9F"));
+
+  displayR.setCursor(0, 12);
+  displayR.print(F("C.AARNAV GUPTA  9G"));
+
+  displayR.setCursor(0, 22);
+  displayR.print(F("K.VIPUL REDDY   9F"));
 }
 
 // ====================================================
