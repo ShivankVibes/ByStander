@@ -96,6 +96,9 @@ Keypad keypad =
 char lastKeyPressed = ' ';
 unsigned long lastKeyPressTime = 0;
 
+void handleKeypad();
+void processKeyEvent(char key);
+
 const int BUZZER_PIN = 26; // Audio Buzzer
 
 // ====================================================
@@ -314,7 +317,16 @@ void rollOllieDistanceCm(int distanceCm, uint16_t heading) {
                 distanceCm, heading, durationMs);
   setOllieColor(0, 255, 0); // Green while driving
   rollOllie(80, heading, 1);
-  delay(durationMs);
+
+  // Non-blocking wait loop with live keypad scanning!
+  unsigned long startDrive = millis();
+  while (millis() - startDrive < durationMs) {
+    handleKeypad();
+    if (currentMode == MODE_COMPANION || lastKeyPressed == '5' || lastKeyPressed == '*' || lastKeyPressed == 'A') {
+      break;
+    }
+    delay(10);
+  }
   stopOllie();
 
   // Restore current color
@@ -330,7 +342,15 @@ void spinTrick() {
 
   uint8_t rawMotor[] = {0x01, 110, 0x02, 110}; // Left fwd, right rev
   sendSpheroPacket(0x02, 0x33, rawMotor, sizeof(rawMotor));
-  delay(650);
+
+  unsigned long startSpin = millis();
+  while (millis() - startSpin < 650) {
+    handleKeypad();
+    if (currentMode == MODE_COMPANION || lastKeyPressed == '*' || lastKeyPressed == 'A') {
+      break;
+    }
+    delay(10);
+  }
 
   uint8_t stopMotor[] = {0x00, 0, 0x00, 0};
   sendSpheroPacket(0x02, 0x33, stopMotor, sizeof(stopMotor));
@@ -550,7 +570,7 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
 
   // 2. 4x4 Keypad Matrix Initialization
-  keypad.setDebounceTime(20);
+  keypad.setDebounceTime(15);
   configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST automatically initialized
 
   // 3. Initialize Left Display on Wire (SDA=21, SCL=22)
@@ -703,8 +723,10 @@ void loop() {
   // Always service web requests (whether on ByStander-WiFi or home network)
   server.handleClient();
 
+  handleKeypad();
   renderDisplays();
-  delay(10); // Snappy ~60 FPS target & instant keypad scans
+  handleKeypad();
+  delay(5); // Ultra-responsive keypad scans & fluid displays
 }
 
 // ====================================================
@@ -1600,9 +1622,12 @@ void processKeyEvent(char key) {
 }
 
 void handleKeypad() {
-  char key = keypad.getKey();
-  if (key != NO_KEY) {
-    processKeyEvent(key);
+  if (keypad.getKeys()) {
+    for (int i = 0; i < LIST_MAX; i++) {
+      if (keypad.key[i].stateChanged && keypad.key[i].kstate == PRESSED) {
+        processKeyEvent(keypad.key[i].kchar);
+      }
+    }
   }
 }
 
@@ -2277,43 +2302,30 @@ void drawBioRight() {
 }
 
 // ====================================================
-// AUDIO PIEZO CHIMES
+// AUDIO PIEZO CHIMES (Snappy & Non-blocking)
 // ====================================================
 void playTone(int freq, int durationMs) {
   tone(BUZZER_PIN, freq, durationMs);
-  delay(durationMs + 10);
-  noTone(BUZZER_PIN);
 }
 
-void soundChirp() { playTone(1800, 25); }
+void soundChirp() { tone(BUZZER_PIN, 1800, 25); }
 
 void soundHappy() {
-  playTone(1318, 60);
-  playTone(1760, 90);
+  tone(BUZZER_PIN, 1760, 60);
 }
 
 void soundPoke() {
-  tone(BUZZER_PIN, 1800, 25);
+  tone(BUZZER_PIN, 1800, 20);
 }
 
 void soundCoin() {
-  playTone(988, 70);
-  playTone(1319, 180);
+  tone(BUZZER_PIN, 1319, 80);
 }
 
 void soundVictory() {
-  int notes[] = {523, 659, 784, 1046};
-  int durations[] = {80, 80, 80, 220};
-  for (int i = 0; i < 4; i++) {
-    playTone(notes[i], durations[i]);
-  }
+  tone(BUZZER_PIN, 1046, 120);
 }
 
 void soundAlarm() {
-  for (int i = 0; i < 3; i++) {
-    playTone(2000, 90);
-    delay(40);
-    playTone(1400, 90);
-    delay(40);
-  }
+  tone(BUZZER_PIN, 2000, 150);
 }
