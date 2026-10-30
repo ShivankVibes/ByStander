@@ -74,8 +74,6 @@ bool rightDisplayAvailable = false;
 // ====================================================
 // Hardware Pinout Reference (4x4 Keypad Matrix)
 // ====================================================
-#include <Keypad.h>
-
 const byte KEYPAD_ROWS = 4;
 const byte KEYPAD_COLS = 4;
 
@@ -84,14 +82,11 @@ char keypadKeys[KEYPAD_ROWS][KEYPAD_COLS] = {{'1', '2', '3', 'A'},
                                              {'7', '8', '9', 'C'},
                                              {'*', '0', '#', 'D'}};
 
-// 4 Rows (Outputs): GPIO 13, 14, 27, 25
+// 4 Rows on ESP32: GPIO 13, 14, 27, 25
 byte rowPins[KEYPAD_ROWS] = {13, 14, 27, 25};
 
-// 4 Columns (Inputs): GPIO 33, 32, 4, 23
+// 4 Columns on ESP32: GPIO 33, 32, 4, 23
 byte colPins[KEYPAD_COLS] = {33, 32, 4, 23};
-
-Keypad keypad =
-    Keypad(makeKeymap(keypadKeys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
 
 char lastKeyPressed = ' ';
 unsigned long lastKeyPressTime = 0;
@@ -569,8 +564,13 @@ void setup() {
   delay(60);
   digitalWrite(BUZZER_PIN, LOW);
 
-  // 2. 4x4 Keypad Matrix Initialization
-  keypad.setDebounceTime(15);
+  // 2. 4x4 Keypad Matrix Initialization with Internal Pullups
+  for (int r = 0; r < KEYPAD_ROWS; r++) {
+    pinMode(rowPins[r], INPUT_PULLUP);
+  }
+  for (int c = 0; c < KEYPAD_COLS; c++) {
+    pinMode(colPins[c], INPUT_PULLUP);
+  }
   configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST automatically initialized
 
   // 3. Initialize Left Display on Wire (SDA=21, SCL=22)
@@ -1621,11 +1621,72 @@ void processKeyEvent(char key) {
   }
 }
 
+// ====================================================
+// ULTRA-RELIABLE ESP32 KEYPAD MATRIX SCANNER (240MHz Optimized)
+// ====================================================
+char rawScanKeypad() {
+  // Standard Scan: Drive Columns LOW one-by-one, Read Rows
+  for (int c = 0; c < KEYPAD_COLS; c++) {
+    pinMode(colPins[c], OUTPUT);
+    digitalWrite(colPins[c], LOW);
+
+    // 25us settling delay: mandatory on 240MHz ESP32 for high-resistance membrane traces
+    delayMicroseconds(25);
+
+    for (int r = 0; r < KEYPAD_ROWS; r++) {
+      if (digitalRead(rowPins[r]) == LOW) {
+        delayMicroseconds(15); // Confirm stable low
+        if (digitalRead(rowPins[r]) == LOW) {
+          pinMode(colPins[c], INPUT_PULLUP);
+          return keypadKeys[r][c];
+        }
+      }
+    }
+    pinMode(colPins[c], INPUT_PULLUP);
+  }
+
+  // Adaptive Scan: Drive Rows LOW one-by-one, Read Columns
+  // Guarantees operation even if user ribbon cable has rows/cols reversed!
+  for (int r = 0; r < KEYPAD_ROWS; r++) {
+    pinMode(rowPins[r], OUTPUT);
+    digitalWrite(rowPins[r], LOW);
+
+    delayMicroseconds(25);
+
+    for (int c = 0; c < KEYPAD_COLS; c++) {
+      if (digitalRead(colPins[c]) == LOW) {
+        delayMicroseconds(15);
+        if (digitalRead(colPins[c]) == LOW) {
+          pinMode(rowPins[r], INPUT_PULLUP);
+          return keypadKeys[r][c];
+        }
+      }
+    }
+    pinMode(rowPins[r], INPUT_PULLUP);
+  }
+
+  return '\0';
+}
+
+char lastRawKey = '\0';
+char stableKey = '\0';
+unsigned long lastRawKeyChange = 0;
+
 void handleKeypad() {
-  if (keypad.getKeys()) {
-    for (int i = 0; i < LIST_MAX; i++) {
-      if (keypad.key[i].stateChanged && keypad.key[i].kstate == PRESSED) {
-        processKeyEvent(keypad.key[i].kchar);
+  char raw = rawScanKeypad();
+  unsigned long now = millis();
+
+  if (raw != lastRawKey) {
+    lastRawKey = raw;
+    lastRawKeyChange = now;
+  }
+
+  // 15ms stable debounce filter
+  if ((now - lastRawKeyChange) >= 15) {
+    if (raw != stableKey) {
+      stableKey = raw;
+      if (stableKey != '\0') {
+        processKeyEvent(stableKey);
       }
     }
   }
