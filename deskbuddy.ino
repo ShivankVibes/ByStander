@@ -550,7 +550,8 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
 
   // 2. 4x4 Keypad Matrix Initialization
-  keypad.setDebounceTime(25);
+  keypad.setDebounceTime(20);
+  configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST automatically initialized
 
   // 3. Initialize Left Display on Wire (SDA=21, SCL=22)
   Wire.begin(21, 22);
@@ -703,7 +704,7 @@ void loop() {
   server.handleClient();
 
   renderDisplays();
-  delay(25); // ~40 FPS target
+  delay(10); // Snappy ~60 FPS target & instant keypad scans
 }
 
 // ====================================================
@@ -1311,46 +1312,83 @@ void processKeyEvent(char key) {
     mqttClient.publish(mqttTopicStatus, msg.c_str());
   }
 
-  // 1. GLOBAL SYSTEM HOTKEYS (A, B, C, D, 9, 7, 0)
-  if (key == 'A') {
-    // Mode A: Companion Eyes
+  // 1. GLOBAL SYSTEM HOTKEYS (A, *, B, C, D, 9, 7, 0, #)
+  // Key * or A: Universal "HOME" -> ALWAYS returns to Companion Eyes from ANY mode!
+  if (key == '*' || key == 'A') {
     switchMode(MODE_COMPANION);
     soundHappy();
     return;
-  } else if (key == 'B') {
-    // Mode B: Pomodoro Focus Timer
-    switchMode(MODE_POMODORO);
-    soundChirp();
-    return;
-  } else if (key == 'C') {
-    // Mode C: Spotify Music Controller
-    switchMode(MODE_SPOTIFY);
-    soundHappy();
-    return;
-  } else if (key == 'D') {
-    // Mode D: System Status & Wi-Fi IP
-    switchMode(MODE_SYSTEM_INFO);
-    soundChirp();
-    return;
   } else if (key == '9') {
-    // 9 --> Wheels (Ollie Robot)
+    // Key 9: Wheels (Robot Pilot)
     if (currentMode != MODE_WHEELS) {
       switchMode(MODE_WHEELS);
       soundVictory();
       return;
     }
   } else if (key == '7') {
-    // 7 --> Real-Time Clock
+    // Key 7: Real-Time Clock (press again to exit)
     if (currentMode != MODE_CLOCK) {
       switchMode(MODE_CLOCK);
       soundChirp();
       return;
+    } else {
+      switchMode(MODE_COMPANION);
+      soundChirp();
+      return;
     }
   } else if (key == '0') {
-    // 0 --> Creator Bio QR Code
+    // Key 0: Creator Bio QR Code (press again to exit)
     if (currentMode != MODE_BIO) {
       switchMode(MODE_BIO);
       soundHappy();
+      return;
+    } else {
+      switchMode(MODE_COMPANION);
+      soundChirp();
+      return;
+    }
+  } else if (key == 'B') {
+    // Key B: Pomodoro Focus Timer (press again to exit)
+    if (currentMode != MODE_POMODORO) {
+      switchMode(MODE_POMODORO);
+      soundChirp();
+      return;
+    } else {
+      switchMode(MODE_COMPANION);
+      soundChirp();
+      return;
+    }
+  } else if (key == 'C') {
+    // Key C: Spotify Music Controller
+    if (currentMode != MODE_SPOTIFY) {
+      switchMode(MODE_SPOTIFY);
+      soundHappy();
+      return;
+    } else {
+      switchMode(MODE_COMPANION);
+      soundChirp();
+      return;
+    }
+  } else if (key == 'D') {
+    // Key D: System Status & Wi-Fi IP
+    if (currentMode != MODE_SYSTEM_INFO) {
+      switchMode(MODE_SYSTEM_INFO);
+      soundChirp();
+      return;
+    } else {
+      switchMode(MODE_COMPANION);
+      soundChirp();
+      return;
+    }
+  } else if (key == '#') {
+    // Key #: Main Menu Toggle
+    if (currentMode != MODE_MENU) {
+      switchMode(MODE_MENU);
+      soundChirp();
+      return;
+    } else {
+      switchMode(MODE_COMPANION);
+      soundChirp();
       return;
     }
   }
@@ -1358,10 +1396,7 @@ void processKeyEvent(char key) {
   // 2. CONTEXTUAL MODE HANDLERS
   switch (currentMode) {
   case MODE_COMPANION:
-    if (key == '#' || key == '5') {
-      soundChirp();
-      switchMode(MODE_MENU);
-    } else if (key == '2') {
+    if (key == '2') {
       currentExpr = EXPR_SURPRISED;
       soundPoke();
     } else if (key == '4') {
@@ -1370,6 +1405,9 @@ void processKeyEvent(char key) {
       currentExpr = EXPR_LOOK_RIGHT;
     } else if (key == '8') {
       currentExpr = EXPR_SLEEPY;
+    } else if (key == '5') {
+      currentExpr = EXPR_NEUTRAL;
+      soundPoke();
     } else if (key == '1') {
       // Quick Ollie Spin
       spinTrick();
@@ -2138,35 +2176,52 @@ void drawSystemInfoRight() {
 }
 
 // ====================================================
-// RIGHT SCREEN: REAL-TIME CLOCK (NTP Synced IST)
+// RIGHT SCREEN: REAL-TIME CLOCK (NTP Synced IST + Live Fallback)
 // ====================================================
 void drawClockRight() {
   struct tm timeinfo;
   displayR.setTextSize(1);
   displayR.setTextColor(SSD1306_WHITE);
 
-  if (!getLocalTime(&timeinfo, 50)) {
-    displayR.setCursor(0, 2);
-    displayR.print(F("REAL-TIME CLOCK"));
-    displayR.setCursor(0, 13);
-    displayR.print(F("Syncing NTP Time..."));
-    displayR.setCursor(0, 23);
-    displayR.print(wifiConnected ? F("Connecting NTP...") : F("WiFi Offline"));
-    return;
+  bool ntpOk = getLocalTime(&timeinfo, 5) && (timeinfo.tm_year > 120);
+
+  if (ntpOk) {
+    // Header Line: Day of week and Date
+    char dateStr[24];
+    strftime(dateStr, sizeof(dateStr), "%a, %d %b %Y", &timeinfo);
+    displayR.setCursor(0, 0);
+    displayR.print(dateStr);
+
+    // Time Line: Big digital clock HH:MM:SS
+    char timeStr[16];
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
+    displayR.setTextSize(2);
+    displayR.setCursor(0, 12);
+    displayR.print(timeStr);
+
+    displayR.setTextSize(1);
+    displayR.setCursor(98, 22);
+    displayR.print(F("[*]Back"));
+  } else {
+    // Show a live ticking clock from system runtime so it NEVER freezes on loading!
+    displayR.setCursor(0, 0);
+    displayR.print(wifiConnected ? F("CLOCK (Syncing NTP)") : F("CLOCK (WiFi Offline)"));
+
+    unsigned long sec = millis() / 1000;
+    int h = (sec / 3600) % 24;
+    int m = (sec / 60) % 60;
+    int s = sec % 60;
+
+    displayR.setTextSize(2);
+    displayR.setCursor(0, 12);
+    char timeStr[16];
+    snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d", h, m, s);
+    displayR.print(timeStr);
+
+    displayR.setTextSize(1);
+    displayR.setCursor(84, 22);
+    displayR.print(F("[*]Back"));
   }
-
-  // Header Line: Day of week and Date
-  char dateStr[24];
-  strftime(dateStr, sizeof(dateStr), "%a, %d %b %Y", &timeinfo);
-  displayR.setCursor(16, 2);
-  displayR.print(dateStr);
-
-  // Time Line: Big digital clock HH:MM:SS
-  char timeStr[16];
-  strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
-  displayR.setTextSize(2);
-  displayR.setCursor(16, 15);
-  displayR.print(timeStr);
 }
 
 // ====================================================
@@ -2238,9 +2293,7 @@ void soundHappy() {
 }
 
 void soundPoke() {
-  playTone(880, 50);
-  playTone(1200, 60);
-  playTone(1600, 70);
+  tone(BUZZER_PIN, 1800, 25);
 }
 
 void soundCoin() {
