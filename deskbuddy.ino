@@ -13,6 +13,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <Wire.h>
+#include <Keypad.h>
 #include <base64.h>
 #include <time.h>
 
@@ -87,6 +88,8 @@ byte rowPins[KEYPAD_ROWS] = {13, 14, 27, 25};
 
 // 4 Columns on ESP32: GPIO 33, 32, 4, 23
 byte colPins[KEYPAD_COLS] = {33, 32, 4, 23};
+
+Keypad keypad = Keypad(makeKeymap(keypadKeys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
 
 char lastKeyPressed = ' ';
 unsigned long lastKeyPressTime = 0;
@@ -564,13 +567,8 @@ void setup() {
   delay(60);
   digitalWrite(BUZZER_PIN, LOW);
 
-  // 2. 4x4 Keypad Matrix Initialization with Internal Pullups
-  for (int r = 0; r < KEYPAD_ROWS; r++) {
-    pinMode(rowPins[r], INPUT_PULLUP);
-  }
-  for (int c = 0; c < KEYPAD_COLS; c++) {
-    pinMode(colPins[c], INPUT_PULLUP);
-  }
+  // 2. 4x4 Keypad Matrix Initialization (identical to verified keypad_test.ino)
+  keypad.setDebounceTime(20);
   configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST automatically initialized
 
   // 3. Initialize Left Display on Wire (SDA=21, SCL=22)
@@ -678,29 +676,49 @@ void setup() {
   mqttClient.setCallback(onMqttMessage);
   mqttClient.setBufferSize(512);
 
-  // Initialize BLE & auto-connect to Sphero Ollie (2B-4FCD)
+  // Initialize BLE & fast non-blocking probe for Sphero Ollie (2B-4FCD)
   BLEDevice::init("ByStander-2.0");
   Serial.println(
-      F("[BLE] Attempting auto-connection to Sphero Ollie (2B-4FCD)..."));
-  connectToOllie();
+      F("[BLE] Scanning 1s for Sphero Ollie (2B-4FCD)..."));
+  BLEScan *pBLEScan = BLEDevice::getScan();
+  pBLEScan->setActiveScan(true);
+  pBLEScan->setInterval(100);
+  pBLEScan->setWindow(99);
+  BLEScanResults *foundDevices = pBLEScan->start(1, false);
+  bool ollieFound = false;
+  if (foundDevices) {
+    for (int i = 0; i < foundDevices->getCount(); i++) {
+      BLEAdvertisedDevice dev = foundDevices->getDevice(i);
+      if (dev.getAddress().equals(targetOllieAddress)) {
+        foundOllieDevice = new BLEAdvertisedDevice(dev);
+        ollieFound = true;
+        break;
+      }
+    }
+    pBLEScan->clearResults();
+  }
+  if (ollieFound) {
+    Serial.println(F("[BLE] Ollie found nearby! Linking..."));
+    connectToOllie();
+  } else {
+    Serial.println(F("[BLE] Ollie not found. Will connect on demand (Key 9 or Web)."));
+  }
 
   if (rightDisplayAvailable) {
     displayR.clearDisplay();
+    displayR.setCursor(0, 2);
     if (wifiConnected) {
-      displayR.setCursor(0, 2);
       displayR.print(F("WIFI: ONLINE"));
       displayR.setCursor(0, 14);
       displayR.print(F("IP: "));
       displayR.print(espIPAddress);
-      delay(1800);
     } else {
-      displayR.setCursor(0, 2);
       displayR.print(F("HOTSPOT: ByStander"));
       displayR.setCursor(0, 14);
       displayR.print(F("IP: 192.168.4.1"));
     }
     displayR.display();
-    delay(1800);
+    delay(500);
   }
 
   switchMode(MODE_COMPANION);
@@ -709,6 +727,8 @@ void setup() {
 // ====================================================
 // MAIN LOOP
 // ====================================================
+unsigned long lastDisplayRender = 0;
+
 void loop() {
   handleKeypad();
   updateAsyncState();
@@ -724,9 +744,17 @@ void loop() {
   server.handleClient();
 
   handleKeypad();
-  renderDisplays();
+
+  // Smooth ~28 FPS OLED rendering (~35ms interval)
+  // Keeps I2C bus free so handleKeypad() is polled hundreds of times per second!
+  unsigned long now = millis();
+  if (now - lastDisplayRender >= 35) {
+    lastDisplayRender = now;
+    renderDisplays();
+  }
+
   handleKeypad();
-  delay(5); // Ultra-responsive keypad scans & fluid displays
+  delay(2);
 }
 
 // ====================================================
@@ -1322,6 +1350,7 @@ void sendSpotifyCommand(const char *endpoint, const char *method) {
 void processKeyEvent(char key) {
   lastKeyPressed = key;
   lastKeyPressTime = millis();
+  lastDisplayRender = 0; // Trigger instant OLED refresh
   Serial.printf("[Keypad] Key '%c' pressed\n", key);
 
   // Audio feedback on every keypress
@@ -1345,6 +1374,9 @@ void processKeyEvent(char key) {
     if (currentMode != MODE_WHEELS) {
       switchMode(MODE_WHEELS);
       soundVictory();
+      if (!ollieConnected) {
+        connectToOllie();
+      }
       return;
     }
   } else if (key == '7') {
@@ -1622,73 +1654,12 @@ void processKeyEvent(char key) {
 }
 
 // ====================================================
-// ULTRA-RELIABLE ESP32 KEYPAD MATRIX SCANNER (240MHz Optimized)
+// 4x4 KEYPAD SCANNER (Identical to verified keypad_test.ino)
 // ====================================================
-char rawScanKeypad() {
-  // Standard Scan: Drive Columns LOW one-by-one, Read Rows
-  for (int c = 0; c < KEYPAD_COLS; c++) {
-    pinMode(colPins[c], OUTPUT);
-    digitalWrite(colPins[c], LOW);
-
-    // 25us settling delay: mandatory on 240MHz ESP32 for high-resistance membrane traces
-    delayMicroseconds(25);
-
-    for (int r = 0; r < KEYPAD_ROWS; r++) {
-      if (digitalRead(rowPins[r]) == LOW) {
-        delayMicroseconds(15); // Confirm stable low
-        if (digitalRead(rowPins[r]) == LOW) {
-          pinMode(colPins[c], INPUT_PULLUP);
-          return keypadKeys[r][c];
-        }
-      }
-    }
-    pinMode(colPins[c], INPUT_PULLUP);
-  }
-
-  // Adaptive Scan: Drive Rows LOW one-by-one, Read Columns
-  // Guarantees operation even if user ribbon cable has rows/cols reversed!
-  for (int r = 0; r < KEYPAD_ROWS; r++) {
-    pinMode(rowPins[r], OUTPUT);
-    digitalWrite(rowPins[r], LOW);
-
-    delayMicroseconds(25);
-
-    for (int c = 0; c < KEYPAD_COLS; c++) {
-      if (digitalRead(colPins[c]) == LOW) {
-        delayMicroseconds(15);
-        if (digitalRead(colPins[c]) == LOW) {
-          pinMode(rowPins[r], INPUT_PULLUP);
-          return keypadKeys[r][c];
-        }
-      }
-    }
-    pinMode(rowPins[r], INPUT_PULLUP);
-  }
-
-  return '\0';
-}
-
-char lastRawKey = '\0';
-char stableKey = '\0';
-unsigned long lastRawKeyChange = 0;
-
 void handleKeypad() {
-  char raw = rawScanKeypad();
-  unsigned long now = millis();
-
-  if (raw != lastRawKey) {
-    lastRawKey = raw;
-    lastRawKeyChange = now;
-  }
-
-  // 15ms stable debounce filter
-  if ((now - lastRawKeyChange) >= 15) {
-    if (raw != stableKey) {
-      stableKey = raw;
-      if (stableKey != '\0') {
-        processKeyEvent(stableKey);
-      }
-    }
+  char key = keypad.getKey();
+  if (key != NO_KEY) {
+    processKeyEvent(key);
   }
 }
 
