@@ -632,6 +632,7 @@ void setup() {
 
   // Launch ByStander-WiFi Hotspot (SoftAP) + Station Mode
   WiFi.mode(WIFI_AP_STA);
+  WiFi.setAutoReconnect(true);
   WiFi.setSleep(
       false); // Crucial for ESP32 WiFi + BLE Coexistence without packet loss!
   WiFi.softAP(apSSID, apPass);
@@ -651,7 +652,7 @@ void setup() {
     Serial.printf("[WiFi] Connecting to '%s'...\n", wifiSSID);
     WiFi.begin(wifiSSID, wifiPass);
     unsigned long startAttempt = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 8000) {
+    while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 6000) {
       delay(200);
     }
     if (WiFi.status() == WL_CONNECTED) {
@@ -659,8 +660,6 @@ void setup() {
       espIPAddress = WiFi.localIP().toString();
       Serial.printf("[WiFi] Connected! IP: %s\n", espIPAddress.c_str());
       soundVictory();
-      refreshSpotifyToken();
-      pollSpotifyCurrentlyPlaying();
       configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST
     } else {
       Serial.println(F("[WiFi] Router connection timed out. ByStander-WiFi "
@@ -671,8 +670,11 @@ void setup() {
   // Web server runs continuously on 192.168.4.1 (and home IP if connected)
   setupWebServer();
 
-  // Initialize Cloud MQTT Client for 24/7 HTTPS Web Sync
+  // Initialize Cloud MQTT Client with ultra-low 80ms timeout to prevent CPU freezes
+  mqttTcpClient.setTimeout(80);
   mqttClient.setServer(mqttServer, mqttPort);
+  mqttClient.setCallback(onMqttMessage);
+  mqttClient.setBufferSize(512);
   mqttClient.setCallback(onMqttMessage);
   mqttClient.setBufferSize(512);
 
@@ -1742,14 +1744,16 @@ void maintainMqtt() {
 
   unsigned long now = millis();
   if (!mqttClient.connected()) {
-    if (now - lastMqttReconnectAttempt > 5000) {
-      lastMqttReconnectAttempt = now;
+    // Only attempt reconnect every 30 seconds, with non-blocking 80ms socket timeout
+    if (now - lastMqttReconnectAttempt > 30000) {
       String clientId =
           "ByStander-ESP32-" + String((uint32_t)ESP.getEfuseMac(), HEX);
+      mqttTcpClient.setTimeout(80);
       if (mqttClient.connect(clientId.c_str())) {
         Serial.println(F("[MQTT] Connected to broker.emqx.io!"));
         mqttClient.subscribe(mqttTopicCmd);
       }
+      lastMqttReconnectAttempt = millis();
     }
   } else {
     mqttClient.loop();
@@ -1824,23 +1828,16 @@ void updateAsyncState() {
     }
   }
 
-  // Auto-maintain WiFi connection state
-  static unsigned long lastWifiReconnectAttempt = 0;
+  // Auto-maintain WiFi connection state (non-blocking)
   if (WiFi.status() == WL_CONNECTED) {
     if (!wifiConnected) {
       wifiConnected = true;
       espIPAddress = WiFi.localIP().toString();
       Serial.printf("[WiFi] Reconnected! IP: %s\n", espIPAddress.c_str());
-      refreshSpotifyToken();
-      pollSpotifyCurrentlyPlaying();
       configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST
     }
   } else {
     wifiConnected = false;
-    if (strlen(wifiSSID) > 0 && (now - lastWifiReconnectAttempt > 10000)) {
-      lastWifiReconnectAttempt = now;
-      WiFi.reconnect();
-    }
   }
 
   // Spotify Web API live polling: only poll when actively in Spotify mode!
@@ -2334,30 +2331,46 @@ void drawBioRight() {
 }
 
 // ====================================================
-// AUDIO PIEZO CHIMES (Snappy & Non-blocking)
+// AUDIO BUZZER CHIMES (Identical to verified keypad_test.ino)
 // ====================================================
-void playTone(int freq, int durationMs) {
-  tone(BUZZER_PIN, freq, durationMs);
+void beep(int durationMs = 25) {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(durationMs);
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
-void soundChirp() { tone(BUZZER_PIN, 1800, 25); }
+void playTone(int freq, int durationMs) {
+  beep(durationMs);
+}
+
+void soundChirp() { beep(35); }
 
 void soundHappy() {
-  tone(BUZZER_PIN, 1760, 60);
+  beep(25);
+  delay(30);
+  beep(35);
 }
 
 void soundPoke() {
-  tone(BUZZER_PIN, 1800, 20);
+  beep(20);
 }
 
 void soundCoin() {
-  tone(BUZZER_PIN, 1319, 80);
+  beep(25);
+  delay(25);
+  beep(50);
 }
 
 void soundVictory() {
-  tone(BUZZER_PIN, 1046, 120);
+  beep(30);
+  delay(30);
+  beep(30);
+  delay(30);
+  beep(60);
 }
 
 void soundAlarm() {
-  tone(BUZZER_PIN, 2000, 150);
+  beep(80);
+  delay(50);
+  beep(80);
 }
