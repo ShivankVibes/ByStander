@@ -307,8 +307,25 @@
                 </div>
               </div>
 
-              <!-- Precision Distance (in cm) & Quick Tricks -->
+              <!-- Precision Distance (in cm), Speed & Quick Tricks -->
               <div class="precision-drive-card">
+                <!-- Tabletop Safe Speed Limit -->
+                <div class="speed-control-block">
+                  <div class="speed-header">
+                    <label class="input-title">Tabletop Speed Limit:</label>
+                    <span class="speed-badge" id="lbl-speed-badge">Crawl (22)</span>
+                  </div>
+                  <div class="speed-slider-wrap">
+                    <input type="range" id="ollie-speed-slider" min="15" max="90" step="5" value="22" class="speed-range-slider" />
+                  </div>
+                  <div class="quick-speed-chips">
+                    <button class="speed-chip active" data-speed="22">🐢 Crawl (22)</button>
+                    <button class="speed-chip" data-speed="35">🚶 Slow (35)</button>
+                    <button class="speed-chip" data-speed="55">🏃 Med (55)</button>
+                    <button class="speed-chip" data-speed="80">🏎️ Fast (80)</button>
+                  </div>
+                </div>
+
                 <div class="cm-input-block">
                   <label for="ollie-cm-val" class="input-title">Voice & Button Distance (cm):</label>
                   <div class="cm-stepper-wrap">

@@ -139,12 +139,12 @@ unsigned long lastSpotifyApiPoll = 0;
 bool spotifyApiActive = false;
 
 // Live Spotify state fetched from Spotify Web API
-String liveSpotifyTrack = "Starboy";
-String liveSpotifyArtist = "The Weeknd";
-int liveSpotifyProgressSec = 78;
-int liveSpotifyTotalSec = 230;
-bool liveSpotifyPlaying = true;
-bool spotifyPlaying = true;
+String liveSpotifyTrack = "Not Playing";
+String liveSpotifyArtist = "";
+int liveSpotifyProgressSec = 0;
+int liveSpotifyTotalSec = 0;
+bool liveSpotifyPlaying = false;
+bool spotifyPlaying = false;
 
 // ====================================================
 // Application Modes
@@ -225,6 +225,7 @@ BLERemoteCharacteristic *pOllieRespChar = nullptr;
 BLEAdvertisedDevice *foundOllieDevice = nullptr;
 bool ollieConnected = false;
 int ollieBatteryPercent = 90;
+uint8_t ollieSpeed = 22; // Tabletop crawl safe speed (default 22, adjustable 10-100)
 int ollieColorIndex = 0;
 const int TOTAL_OLLIE_COLORS = 5;
 const char *ollieColors[TOTAL_OLLIE_COLORS] = {"Cyan", "Purple", "Green", "Red",
@@ -303,20 +304,22 @@ void stopOllie() {
 
 // Drive specific distance in centimeters!
 void rollOllieDistanceCm(int distanceCm, uint16_t heading) {
-  if (distanceCm < 5)
-    distanceCm = 5;
-  if (distanceCm > 200)
-    distanceCm = 200;
+  if (distanceCm < 2)
+    distanceCm = 2;
+  if (distanceCm > 100)
+    distanceCm = 100;
 
-  // Approx 55ms per centimeter at speed 80
-  unsigned long durationMs = distanceCm * 55;
+  // Gentle tabletop crawling scaled by current speed
+  // At speed 22: ~140ms per cm (e.g. 4cm creep = 560ms)
+  unsigned long msPerCm = (ollieSpeed > 0) ? (3200 / ollieSpeed) : 140;
+  unsigned long durationMs = distanceCm * msPerCm;
 
-  Serial.printf("[Ollie] Rolling %d cm (heading %d) for %lu ms...\n",
-                distanceCm, heading, durationMs);
+  Serial.printf("[Ollie] Safe Roll %d cm (heading %d) at speed %d for %lu ms...\n",
+                distanceCm, heading, ollieSpeed, durationMs);
   setOllieColor(0, 255, 0); // Green while driving
-  rollOllie(80, heading, 1);
+  rollOllie(ollieSpeed, heading, 1);
 
-  // Non-blocking wait loop with live keypad scanning!
+  // Non-blocking wait loop with live keypad scanning & instant brake!
   unsigned long startDrive = millis();
   while (millis() - startDrive < durationMs) {
     handleKeypad();
@@ -471,16 +474,6 @@ bool connectToOllie() {
   return false;
 }
 
-// ====================================================
-// Offline Fallback Playlist
-// ====================================================
-int spotifyTrackIdx = 0;
-const int TOTAL_SPOTIFY_TRACKS = 4;
-const char *spotifyTracks[TOTAL_SPOTIFY_TRACKS] = {
-    "Starboy", "Blinding Lights", "Get Lucky", "Midnight City"};
-const char *spotifyArtists[TOTAL_SPOTIFY_TRACKS] = {"The Weeknd", "The Weeknd",
-                                                    "Daft Punk", "M83"};
-const int spotifyTrackLengths[TOTAL_SPOTIFY_TRACKS] = {230, 200, 248, 243};
 
 // ====================================================
 // Reflex Game State
@@ -506,7 +499,11 @@ unsigned long modeSwitchCooldownUntil = 0;
 void switchMode(BotMode newMode) {
   currentMode = newMode;
   modeSwitchCooldownUntil = millis() + 250;
-  if (newMode == MODE_SPOTIFY) {
+  if (newMode == MODE_WHEELS) {
+    if (!ollieConnected) {
+      connectToOllie();
+    }
+  } else if (newMode == MODE_SPOTIFY) {
     lastSpotifyApiPoll = 0; // Trigger Spotify poll immediately
   }
 }
@@ -514,6 +511,7 @@ void switchMode(BotMode newMode) {
 // ====================================================
 // Forward Declarations
 // ====================================================
+void beep(int durationMs = 25);
 void playTone(int freq, int durationMs);
 void soundChirp();
 void soundHappy();
@@ -568,7 +566,7 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
 
   // 2. 4x4 Keypad Matrix Initialization (identical to verified keypad_test.ino)
-  keypad.setDebounceTime(20);
+  keypad.setDebounceTime(10);
   configTime(19800, 0, "pool.ntp.org", "time.google.com"); // UTC+5:30 IST automatically initialized
 
   // 3. Initialize Left Display on Wire (SDA=21, SCL=22)
@@ -617,18 +615,10 @@ void setup() {
   strncpy(wifiSSID, storedSSID.c_str(), sizeof(wifiSSID));
   strncpy(wifiPass, storedPass.c_str(), sizeof(wifiPass));
 
-  // PURGE any corrupted or experimental Spotify credentials saved previously!
-  preferences.remove("sp_cid");
-  preferences.remove("sp_sec");
-  preferences.remove("sp_tok");
-
-  // Restore known verified working Spotify account
-  spotifyClientId = "001f2f27609349db91cea22353df81ce";
-  spotifyClientSecret = "9e26492500724b659b5a3ae35d389752";
-  spotifyRefreshToken = "AQAqe4VQuN7ZnP-mE1rnsICJg_-JBk1W0ZGa2qVx0h5lB-"
-                        "KjorgUhXj3qJ4FhSDIo0XqslcfNyVBbg30RfSRVgEz4SEd01fBE-"
-                        "Jr2NOcQoJSFi_LxYgCbqLyK1STx1ZgyV4";
-  Serial.println(F("[Spotify] Reset credentials to verified working account!"));
+  // Load saved Spotify credentials from Flash memory
+  spotifyClientId = preferences.getString("sp_cid", "001f2f27609349db91cea22353df81ce");
+  spotifyClientSecret = preferences.getString("sp_sec", "9e26492500724b659b5a3ae35d389752");
+  spotifyRefreshToken = preferences.getString("sp_tok", "");
 
   // Launch ByStander-WiFi Hotspot (SoftAP) + Station Mode
   WiFi.mode(WIFI_AP_STA);
@@ -670,41 +660,17 @@ void setup() {
   // Web server runs continuously on 192.168.4.1 (and home IP if connected)
   setupWebServer();
 
-  // Initialize Cloud MQTT Client with ultra-low 80ms timeout to prevent CPU freezes
-  mqttTcpClient.setTimeout(80);
+  // Initialize Cloud MQTT Client with ultra-low 50ms timeout to prevent CPU freezes
+  mqttTcpClient.setTimeout(50);
   mqttClient.setServer(mqttServer, mqttPort);
   mqttClient.setCallback(onMqttMessage);
   mqttClient.setBufferSize(512);
-  mqttClient.setCallback(onMqttMessage);
-  mqttClient.setBufferSize(512);
 
-  // Initialize BLE & fast non-blocking probe for Sphero Ollie (2B-4FCD)
+  // Initialize BLE & Auto-Wake Sphero Ollie (2B-4FCD)
   BLEDevice::init("ByStander-2.0");
   Serial.println(
-      F("[BLE] Scanning 1s for Sphero Ollie (2B-4FCD)..."));
-  BLEScan *pBLEScan = BLEDevice::getScan();
-  pBLEScan->setActiveScan(true);
-  pBLEScan->setInterval(100);
-  pBLEScan->setWindow(99);
-  BLEScanResults *foundDevices = pBLEScan->start(1, false);
-  bool ollieFound = false;
-  if (foundDevices) {
-    for (int i = 0; i < foundDevices->getCount(); i++) {
-      BLEAdvertisedDevice dev = foundDevices->getDevice(i);
-      if (dev.getAddress().equals(targetOllieAddress)) {
-        foundOllieDevice = new BLEAdvertisedDevice(dev);
-        ollieFound = true;
-        break;
-      }
-    }
-    pBLEScan->clearResults();
-  }
-  if (ollieFound) {
-    Serial.println(F("[BLE] Ollie found nearby! Linking..."));
-    connectToOllie();
-  } else {
-    Serial.println(F("[BLE] Ollie not found. Will connect on demand (Key 9 or Web)."));
-  }
+      F("[BLE] Auto-connecting & waking Sphero Ollie (2B-4FCD)..."));
+  connectToOllie();
 
   if (rightDisplayAvailable) {
     displayR.clearDisplay();
@@ -786,29 +752,16 @@ void setupWebServer() {
     json += "\"spotify\":{";
     json +=
         "\"apiActive\":" + String(spotifyApiActive ? "true" : "false") + ",";
-    json += "\"playing\":" +
-            String(spotifyApiActive ? (liveSpotifyPlaying ? "true" : "false")
-                                    : (spotifyPlaying ? "true" : "false")) +
-            ",";
-    json += "\"track\":\"" +
-            (spotifyApiActive ? liveSpotifyTrack
-                              : String(spotifyTracks[spotifyTrackIdx])) +
-            "\",";
-    json += "\"artist\":\"" +
-            (spotifyApiActive ? liveSpotifyArtist
-                              : String(spotifyArtists[spotifyTrackIdx])) +
-            "\",";
-    json += "\"progress\":" +
-            String(spotifyApiActive ? liveSpotifyProgressSec
-                                    : (millis() / 1000) % 200) +
-            ",";
-    json += "\"total\":" + String(spotifyApiActive
-                                      ? liveSpotifyTotalSec
-                                      : spotifyTrackLengths[spotifyTrackIdx]);
+    json += "\"playing\":" + String(liveSpotifyPlaying ? "true" : "false") + ",";
+    json += "\"track\":\"" + (liveSpotifyPlaying ? liveSpotifyTrack : "Not Playing") + "\",";
+    json += "\"artist\":\"" + (liveSpotifyPlaying ? liveSpotifyArtist : "") + "\",";
+    json += "\"progress\":" + String(liveSpotifyProgressSec) + ",";
+    json += "\"total\":" + String(liveSpotifyTotalSec);
     json += "},";
     json += "\"ollie\":{\"connected\":" +
             String(ollieConnected ? "true" : "false") +
-            ",\"battery\":" + String(ollieBatteryPercent) + ",\"color\":\"" +
+            ",\"battery\":" + String(ollieBatteryPercent) + ",\"speed\":" +
+            String(ollieSpeed) + ",\"color\":\"" +
             String(ollieColors[ollieColorIndex]) + "\"},";
     json +=
         "\"pomodoro\":{\"running\":" + String(timerRunning ? "true" : "false") +
@@ -881,8 +834,10 @@ void setupWebServer() {
       } else if (act == "next") {
         if (spotifyApiActive)
           sendSpotifyCommand("next", "POST");
-        else
-          spotifyTrackIdx = (spotifyTrackIdx + 1) % TOTAL_SPOTIFY_TRACKS;
+        soundChirp();
+      } else if (act == "prev" || act == "previous") {
+        if (spotifyApiActive)
+          sendSpotifyCommand("previous", "POST");
         soundChirp();
       }
     }
@@ -942,6 +897,17 @@ void setupWebServer() {
       }
       server.send(200, "application/json",
                   "{\"status\":\"ok\",\"action\":\"color\"}");
+      return;
+    } else if (action == "speed") {
+      if (server.hasArg("val")) {
+        int sp = server.arg("val").toInt();
+        if (sp >= 10 && sp <= 150) {
+          ollieSpeed = sp;
+        }
+      }
+      server.send(200, "application/json",
+                  "{\"status\":\"ok\",\"action\":\"speed\",\"speed\":" +
+                      String(ollieSpeed) + "}");
       return;
     } else if (action == "connect") {
       bool ok = connectToOllie();
@@ -1195,7 +1161,7 @@ void refreshSpotifyToken() {
     auth.replace("\r", "");
     auth.replace("\n", "");
     http.addHeader("Authorization", "Basic " + auth);
-    http.setTimeout(8000);
+    http.setTimeout(1500);
 
     String body =
         "grant_type=refresh_token&refresh_token=" + spotifyRefreshToken;
@@ -1213,6 +1179,10 @@ void refreshSpotifyToken() {
     } else {
       Serial.printf("[Spotify] Token refresh error (%d): %s\n", code,
                     http.getString().substring(0, 100).c_str());
+      spotifyApiActive = false;
+      liveSpotifyPlaying = false;
+      liveSpotifyTrack = "Not Playing";
+      liveSpotifyArtist = "";
     }
     http.end();
   }
@@ -1275,7 +1245,7 @@ void pollSpotifyCurrentlyPlaying() {
   if (http.begin(client,
                  "https://api.spotify.com/v1/me/player/currently-playing")) {
     http.addHeader("Authorization", "Bearer " + spotifyAccessToken);
-    http.setTimeout(1800);
+    http.setTimeout(400); // 400ms max timeout to keep loop fluid
     int code = http.GET();
     if (code == 200) {
       String resp = http.getString();
@@ -1317,9 +1287,18 @@ void pollSpotifyCurrentlyPlaying() {
       }
     } else if (code == 204) {
       liveSpotifyPlaying = false;
+      liveSpotifyTrack = "Not Playing";
+      liveSpotifyArtist = "";
     } else if (code == 401) {
       spotifyAccessToken = "";
       spotifyTokenExpiry = 0;
+      liveSpotifyPlaying = false;
+      liveSpotifyTrack = "Not Playing";
+      liveSpotifyArtist = "";
+    } else {
+      liveSpotifyPlaying = false;
+      liveSpotifyTrack = "Not Playing";
+      liveSpotifyArtist = "";
     }
     http.end();
   }
@@ -1525,23 +1504,26 @@ void processKeyEvent(char key) {
     break;
 
   case MODE_WHEELS:
-    // Physical 2-Axis Precision Pilot via Keypad!
+    // Physical Tabletop Precision Pilot via Keypad!
+    if (!ollieConnected) {
+      connectToOllie();
+    }
     if (key == '2') {
-      // Forward 15 cm
-      rollOllieDistanceCm(15, 0);
+      // Gentle forward crawl (4 cm at safe speed)
+      rollOllieDistanceCm(4, 0);
     } else if (key == '8') {
-      // Backward 15 cm
-      rollOllieDistanceCm(15, 180);
+      // Gentle backward crawl (4 cm at safe speed)
+      rollOllieDistanceCm(4, 180);
     } else if (key == '4') {
-      // Left 90 deg
-      rollOllieDistanceCm(10, 270);
+      // Gentle left turn
+      rollOllieDistanceCm(3, 270);
     } else if (key == '6') {
-      // Right 90 deg
-      rollOllieDistanceCm(10, 90);
+      // Gentle right turn
+      rollOllieDistanceCm(3, 90);
     } else if (key == '5') {
       // Emergency Brake / Stop
       stopOllie();
-      soundPoke();
+      beep(20);
     } else if (key == '1') {
       // 360 Spin Trick
       spinTrick();
@@ -1554,8 +1536,8 @@ void processKeyEvent(char key) {
                     ollieColorRGB[ollieColorIndex][2]);
       soundHappy();
     } else if (key == '9') {
-      // Boost Forward 35 cm!
-      rollOllieDistanceCm(35, 0);
+      // Safe crawl 8 cm
+      rollOllieDistanceCm(8, 0);
       soundVictory();
     } else if (key == '*' || key == '#') {
       switchMode(MODE_MENU);
@@ -1609,15 +1591,10 @@ void processKeyEvent(char key) {
     } else if (key == '6' || key == '3') {
       if (spotifyApiActive)
         sendSpotifyCommand("next", "POST");
-      else
-        spotifyTrackIdx = (spotifyTrackIdx + 1) % TOTAL_SPOTIFY_TRACKS;
       soundChirp();
     } else if (key == '4' || key == '1') {
       if (spotifyApiActive)
         sendSpotifyCommand("previous", "POST");
-      else
-        spotifyTrackIdx =
-            (spotifyTrackIdx + TOTAL_SPOTIFY_TRACKS - 1) % TOTAL_SPOTIFY_TRACKS;
       soundChirp();
     } else if (key == '*' || key == '0') {
       switchMode(MODE_MENU);
@@ -2084,7 +2061,11 @@ void drawOllieRight() {
   displayR.setTextSize(1);
   displayR.setTextColor(SSD1306_WHITE);
   displayR.setCursor(0, 0);
-  displayR.print(F("WHEELS: 2B-4FCD"));
+  if (ollieConnected) {
+    displayR.print(F("WHEELS [ONLINE]"));
+  } else {
+    displayR.print(F("WHEELS [CONNECT...]"));
+  }
 
   displayR.drawRect(0, 11, 48, 9, SSD1306_WHITE);
   displayR.fillRect(48, 13, 2, 5, SSD1306_WHITE);
@@ -2099,8 +2080,7 @@ void drawOllieRight() {
   displayR.print(F("% 3.9V"));
 
   displayR.setCursor(0, 23);
-  displayR.print(F("LED: "));
-  displayR.print(ollieColors[ollieColorIndex]);
+  displayR.printf("SPD:%d | 2,8,4,6", ollieSpeed);
 }
 
 // ====================================================
@@ -2165,42 +2145,44 @@ void drawSpotifyRight() {
 
   // Line 1: Header / Status (y = 0)
   displayR.setCursor(0, 0);
-  if (spotifyApiActive) {
-    displayR.print(liveSpotifyPlaying ? F("SPOTIFY [LIVE]")
-                                      : F("SPOTIFY [PAUSED]"));
+  if (liveSpotifyPlaying) {
+    displayR.print(F("SPOTIFY [PLAYING]"));
+  } else if (spotifyApiActive) {
+    displayR.print(F("SPOTIFY [PAUSED]"));
   } else {
-    displayR.print(spotifyPlaying ? F("SPOTIFY [LOCAL]")
-                                  : F("SPOTIFY [PAUSED]"));
+    displayR.print(F("SPOTIFY [IDLE]"));
   }
 
   // Line 2: Track Title (y = 9) - up to 21 characters
   displayR.setCursor(0, 9);
-  String tTitle = spotifyApiActive ? liveSpotifyTrack
-                                   : String(spotifyTracks[spotifyTrackIdx]);
+  String tTitle = liveSpotifyPlaying ? liveSpotifyTrack : F("Not Playing");
   if (tTitle.length() > 21)
     tTitle = tTitle.substring(0, 20) + F("~");
   displayR.print(tTitle);
 
   // Line 3: Artist (y = 18) - up to 21 characters
   displayR.setCursor(0, 18);
-  String aName = spotifyApiActive ? liveSpotifyArtist
-                                  : String(spotifyArtists[spotifyTrackIdx]);
-  if (aName.length() > 18)
-    aName = aName.substring(0, 17) + F("~");
-  displayR.print(F("by "));
-  displayR.print(aName);
+  if (liveSpotifyPlaying && liveSpotifyArtist.length() > 0) {
+    String aName = liveSpotifyArtist;
+    if (aName.length() > 18)
+      aName = aName.substring(0, 17) + F("~");
+    displayR.print(F("by "));
+    displayR.print(aName);
+  } else {
+    displayR.print(F("Press 5 / Play"));
+  }
 
   // Line 4: Sleek Progress Bar (y = 27, height = 4)
-  int curSec =
-      spotifyApiActive ? liveSpotifyProgressSec : (millis() / 1000) % 200;
-  int totSec = spotifyApiActive ? liveSpotifyTotalSec
-                                : spotifyTrackLengths[spotifyTrackIdx];
-  if (totSec <= 0)
-    totSec = 180;
-  int progW = map(constrain(curSec, 0, totSec), 0, totSec, 0, 126);
-  displayR.drawRect(0, 27, 128, 4, SSD1306_WHITE);
-  if (progW > 0) {
-    displayR.fillRect(1, 28, progW, 2, SSD1306_WHITE);
+  if (liveSpotifyPlaying && liveSpotifyTotalSec > 0) {
+    int curSec = liveSpotifyProgressSec;
+    int totSec = liveSpotifyTotalSec;
+    int progW = map(constrain(curSec, 0, totSec), 0, totSec, 0, 126);
+    displayR.drawRect(0, 27, 128, 4, SSD1306_WHITE);
+    if (progW > 0) {
+      displayR.fillRect(1, 28, progW, 2, SSD1306_WHITE);
+    }
+  } else {
+    displayR.drawFastHLine(0, 28, 128, SSD1306_WHITE);
   }
 }
 
@@ -2333,7 +2315,7 @@ void drawBioRight() {
 // ====================================================
 // AUDIO BUZZER CHIMES (Identical to verified keypad_test.ino)
 // ====================================================
-void beep(int durationMs = 25) {
+void beep(int durationMs) {
   digitalWrite(BUZZER_PIN, HIGH);
   delay(durationMs);
   digitalWrite(BUZZER_PIN, LOW);

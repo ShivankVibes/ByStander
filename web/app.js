@@ -740,8 +740,8 @@ async function syncSpotifyStatus() {
         state.spotify.progressSec = sp.progress;
         state.spotify.totalSec = sp.total > 0 ? sp.total : 180;
 
-        const title = sp.track || "ByStander Groove";
-        const artist = sp.artist || "ByStander Audio";
+        const title = sp.track || "Not Playing";
+        const artist = sp.artist || "";
 
         trackTitleEl.textContent = title;
         trackArtistEl.textContent = artist;
@@ -960,6 +960,7 @@ const joyBase = document.getElementById('ollie-joystick-base');
 const joyKnob = document.getElementById('ollie-joystick-knob');
 const joyHeadingVal = document.getElementById('joy-heading-val');
 const joySpeedVal = document.getElementById('joy-speed-val');
+let currentSpeedLimit = 22; // Default safe tabletop crawl speed
 
 if (joyBase && joyKnob) {
   let isPiloting = false;
@@ -1000,7 +1001,7 @@ if (joyBase && joyKnob) {
     const now = Date.now();
     if (now - lastJoySendTime >= 70) {
       lastJoySendTime = now;
-      const speedScaled = Math.round((throttlePct / 100) * 140); // speed range 0-140
+      const speedScaled = Math.round((throttlePct / 100) * currentSpeedLimit);
       sendOllieCommand({ action: 'roll', speed: speedScaled, heading: headingDeg });
     }
   }
@@ -1086,6 +1087,39 @@ document.querySelectorAll('.cm-chip').forEach(chip => {
     synth.btnClick();
     const cm = parseInt(chip.dataset.cm, 10);
     updateDistanceLabels(cm);
+  });
+});
+
+// Tabletop Safe Speed Controller
+const speedSlider = document.getElementById('ollie-speed-slider');
+const lblSpeedBadge = document.getElementById('lbl-speed-badge');
+
+function setOllieSpeed(val) {
+  currentSpeedLimit = Math.max(10, Math.min(150, parseInt(val, 10) || 22));
+  if (speedSlider) speedSlider.value = currentSpeedLimit;
+  if (lblSpeedBadge) {
+    let name = "Crawl";
+    if (currentSpeedLimit >= 75) name = "Fast";
+    else if (currentSpeedLimit >= 45) name = "Med";
+    else if (currentSpeedLimit >= 30) name = "Slow";
+    lblSpeedBadge.textContent = `${name} (${currentSpeedLimit})`;
+  }
+  document.querySelectorAll('.speed-chip').forEach(chip => {
+    chip.classList.toggle('active', parseInt(chip.dataset.speed, 10) === currentSpeedLimit);
+  });
+  sendOllieCommand({ action: 'speed', val: currentSpeedLimit });
+}
+
+if (speedSlider) {
+  speedSlider.addEventListener('input', (e) => {
+    setOllieSpeed(e.target.value);
+  });
+}
+
+document.querySelectorAll('.speed-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    synth.btnClick();
+    setOllieSpeed(chip.dataset.speed);
   });
 });
 
