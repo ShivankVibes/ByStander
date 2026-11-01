@@ -534,6 +534,7 @@ void drawSystemInfoRight();
 void drawClockRight();
 void drawBioRight();
 void drawBioLeft();
+void drawKeypadGuide(Adafruit_SSD1306 &disp);
 
 void handleKeypad();
 void processKeyEvent(char key);
@@ -1830,17 +1831,19 @@ void updateAsyncState() {
 // ====================================================
 void renderDisplays() {
   if (leftDisplayAvailable && rightDisplayAvailable) {
-    // Left Screen: Companion Eye (or Dedicated QR Code in Bio Mode)
+    // Left Screen: Companion Eye in idle mode, QR Code in Bio mode, or dynamic Keypad Controls Guide when an app is open
     displayL.clearDisplay();
     if (currentMode == MODE_BIO) {
       drawBioLeft();
-    } else {
+    } else if (currentMode == MODE_COMPANION) {
       drawEyeOnDisplay(displayL, true);
+      drawLiveButtonIndicators(displayL);
+    } else {
+      drawKeypadGuide(displayL);
     }
-    drawLiveButtonIndicators(displayL);
     displayL.display();
 
-    // Right Screen: Eye or Active Feature Panel
+    // Right Screen: Eye in Companion mode or Active Feature Panel in App mode
     displayR.clearDisplay();
     if (currentMode == MODE_COMPANION) {
       drawEyeOnDisplay(displayR, false);
@@ -2310,6 +2313,163 @@ void drawBioRight() {
 
   displayR.setCursor(0, 22);
   displayR.print(F("K.VIPUL REDDY   9F"));
+}
+
+// ====================================================
+// LEFT SCREEN: CONTEXTUAL KEYPAD CONTROLS GUIDE
+// Displays real-time button functions whenever an app is open:
+// moving, steering, actions, and exiting!
+// ====================================================
+void drawKeypadGuideWheels(Adafruit_SSD1306 &disp) {
+  disp.setTextSize(1);
+  disp.setTextColor(SSD1306_WHITE);
+
+  // Line 0: Moving Forward & Reverse + Brake Stop
+  disp.setCursor(0, 0);
+  disp.print(F("2:FWD  8:REV  5:STOP"));
+
+  // Line 1: Steering Left & Right + Spin Trick
+  disp.setCursor(0, 8);
+  disp.print(F("4:LFT  6:RGT  1:SPIN"));
+
+  // Line 2: LED Color Cycle & Crawl Step
+  disp.setCursor(0, 16);
+  disp.print(F("3:COLOR      9:CRAWL"));
+
+  // Line 3: Exit Back to Menu / Companion
+  disp.setCursor(0, 24);
+  disp.print(F("*:EXIT / BACK"));
+}
+
+void drawKeypadGuidePomodoro(Adafruit_SSD1306 &disp) {
+  disp.setTextSize(1);
+  disp.setTextColor(SSD1306_WHITE);
+
+  disp.setCursor(0, 0);
+  disp.print(F("5:START / PAUSE"));
+
+  disp.setCursor(0, 8);
+  disp.print(F("1:25MIN FOCUS"));
+
+  disp.setCursor(0, 16);
+  disp.print(F("2:45MIN   3:5MIN BRK"));
+
+  disp.setCursor(0, 24);
+  disp.print(F("*:EXIT TO MENU"));
+}
+
+void drawKeypadGuideSpotify(Adafruit_SSD1306 &disp) {
+  disp.setTextSize(1);
+  disp.setTextColor(SSD1306_WHITE);
+
+  disp.setCursor(0, 0);
+  disp.print(F("5:PLAY / PAUSE"));
+
+  disp.setCursor(0, 8);
+  disp.print(F("4:PREV TRACK"));
+
+  disp.setCursor(0, 16);
+  disp.print(F("6:NEXT TRACK"));
+
+  disp.setCursor(0, 24);
+  disp.print(F("*:EXIT TO MENU"));
+}
+
+void drawKeypadGuideMenu(Adafruit_SSD1306 &disp) {
+  disp.setTextSize(1);
+  disp.setTextColor(SSD1306_WHITE);
+
+  disp.setCursor(0, 0);
+  disp.print(F("2/4:UP      8/6:DOWN"));
+
+  disp.setCursor(0, 8);
+  disp.print(F("5/#:SELECT APP"));
+
+  disp.setCursor(0, 16);
+  disp.print(F("1-8:QUICK JUMP"));
+
+  disp.setCursor(0, 24);
+  disp.print(F("*:EXIT TO EYES"));
+}
+
+void drawKeypadGuideReflex(Adafruit_SSD1306 &disp) {
+  disp.setTextSize(1);
+  disp.setTextColor(SSD1306_WHITE);
+
+  disp.setCursor(0, 0);
+  disp.print(F("5:TRIGGER / REACT"));
+
+  disp.setCursor(0, 8);
+  disp.print(F("WAIT FOR SIGNAL"));
+
+  disp.setCursor(0, 16);
+  disp.print(F("FASTEST TIME WINS"));
+
+  disp.setCursor(0, 24);
+  disp.print(F("*:EXIT TO MENU"));
+}
+
+void drawKeypadGuideClock(Adafruit_SSD1306 &disp) {
+  disp.setTextSize(1);
+  disp.setTextColor(SSD1306_WHITE);
+
+  disp.setCursor(0, 0);
+  disp.print(F("REALTIME CLOCK"));
+
+  disp.setCursor(0, 8);
+  disp.print(F("UTC+5:30 IST"));
+
+  disp.setCursor(0, 16);
+  disp.print(F("WIFI AUTO-SYNC"));
+
+  disp.setCursor(0, 24);
+  disp.print(F("*:EXIT TO EYES"));
+}
+
+void drawKeypadGuideSystem(Adafruit_SSD1306 &disp) {
+  disp.setTextSize(1);
+  disp.setTextColor(SSD1306_WHITE);
+
+  disp.setCursor(0, 0);
+  disp.print(F("SYSTEM DIAG"));
+
+  disp.setCursor(0, 8);
+  disp.print(F("WIFI+BLE DUAL LINK"));
+
+  disp.setCursor(0, 16);
+  disp.print(F("ANY KEY:MENU"));
+
+  disp.setCursor(0, 24);
+  disp.print(F("*:EXIT TO EYES"));
+}
+
+void drawKeypadGuide(Adafruit_SSD1306 &disp) {
+  switch (currentMode) {
+  case MODE_WHEELS:
+    drawKeypadGuideWheels(disp);
+    break;
+  case MODE_POMODORO:
+    drawKeypadGuidePomodoro(disp);
+    break;
+  case MODE_SPOTIFY:
+    drawKeypadGuideSpotify(disp);
+    break;
+  case MODE_MENU:
+    drawKeypadGuideMenu(disp);
+    break;
+  case MODE_REFLEX_GAME:
+    drawKeypadGuideReflex(disp);
+    break;
+  case MODE_CLOCK:
+    drawKeypadGuideClock(disp);
+    break;
+  case MODE_SYSTEM_INFO:
+    drawKeypadGuideSystem(disp);
+    break;
+  default:
+    drawEyeOnDisplay(disp, true);
+    break;
+  }
 }
 
 // ====================================================
