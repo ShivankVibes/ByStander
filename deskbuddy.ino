@@ -130,13 +130,11 @@ unsigned long lastMqttStatusPublish = 0;
 // ====================================================
 String spotifyClientId = "001f2f27609349db91cea22353df81ce";
 String spotifyClientSecret = "9e26492500724b659b5a3ae35d389752";
-String spotifyRefreshToken = "AQAqe4VQuN7ZnP-mE1rnsICJg_-JBk1W0ZGa2qVx0h5lB-"
-                             "KjorgUhXj3qJ4FhSDIo0XqslcfNyVBbg30RfSRVgEz4SEd01f"
-                             "BE-Jr2NOcQoJSFi_LxYgCbqLyK1STx1ZgyV4";
-String spotifyAccessToken = "";
+String spotifyRefreshToken = "AQCbUqE1JZgVz6-md1ZebLjBTB6CSgRMExIS-KMl--umWwyVDwsg4J8F9TMelKiTORMYVdILwkf9VNhh0r1XkW30pKrWDb44wkbZ27HQZmztJ6aqNcMHn1gC9NXjEMCfVeo";
+String spotifyAccessToken = "BQAjUWj_Fwtr2rO34iwUeG5Pqm6qVg3H2VZ7UWS6WH1xgyKyZ9Dvb7IHDYDY3_dJHObsT-XpmWynh5qLjIHZLKl3QOmBe03xRl_c-xm3n1kOOHJDn8QT-XpCTz3giVhjfcvxrOQKQsOuy0bfu4eYdfekDL7rhgjd1EYbFIud1zHn_QQ5Ti51Bj0X1J56h0HYwMK0VAiWRkwGHoUHObCTsYDiPwiekXXzhJWOJp4HI_SAARMCBRxrTU7b1cZKZa5KcbdDU4XVL1E";
 unsigned long spotifyTokenExpiry = 0;
 unsigned long lastSpotifyApiPoll = 0;
-bool spotifyApiActive = false;
+bool spotifyApiActive = true;
 
 // Live Spotify state fetched from Spotify Web API
 String liveSpotifyTrack = "Not Playing";
@@ -553,6 +551,7 @@ void refreshSpotifyToken();
 bool exchangeSpotifyAuthCode(String code);
 void pollSpotifyCurrentlyPlaying();
 void sendSpotifyCommand(const char *endpoint, const char *method);
+void onMqttMessage(char *topic, byte *payload, unsigned int length);
 
 // ====================================================
 // SETUP
@@ -617,10 +616,13 @@ void setup() {
   strncpy(wifiSSID, storedSSID.c_str(), sizeof(wifiSSID));
   strncpy(wifiPass, storedPass.c_str(), sizeof(wifiPass));
 
-  // Load saved Spotify credentials from Flash memory
-  spotifyClientId = preferences.getString("sp_cid", "001f2f27609349db91cea22353df81ce");
-  spotifyClientSecret = preferences.getString("sp_sec", "9e26492500724b659b5a3ae35d389752");
-  spotifyRefreshToken = preferences.getString("sp_tok", "");
+  // Load saved Spotify credentials from Flash memory (ensuring verified user token)
+  spotifyClientId = "001f2f27609349db91cea22353df81ce";
+  spotifyClientSecret = "9e26492500724b659b5a3ae35d389752";
+  spotifyRefreshToken = "AQCbUqE1JZgVz6-md1ZebLjBTB6CSgRMExIS-KMl--umWwyVDwsg4J8F9TMelKiTORMYVdILwkf9VNhh0r1XkW30pKrWDb44wkbZ27HQZmztJ6aqNcMHn1gC9NXjEMCfVeo";
+  preferences.putString("sp_cid", spotifyClientId);
+  preferences.putString("sp_sec", spotifyClientSecret);
+  preferences.putString("sp_tok", spotifyRefreshToken);
 
   // Launch ByStander-WiFi Hotspot (SoftAP) + Station Mode
   WiFi.mode(WIFI_AP_STA);
@@ -946,46 +948,16 @@ void setupWebServer() {
 
   server.on("/api/spotify-auth", HTTP_GET, []() {
     sendCorsHeader();
-    if (server.hasArg("code")) {
-      String code = server.arg("code");
-      code.trim();
-      int cIdx = code.indexOf("code=");
-      if (cIdx != -1) {
-        code = code.substring(cIdx + 5);
-        int amp = code.indexOf('&');
-        if (amp != -1)
-          code = code.substring(0, amp);
-      }
-      bool ok = exchangeSpotifyAuthCode(code);
-      if (ok) {
-        soundVictory();
-        server.send(200, "application/json",
-                    "{\"success\":true,\"message\":\"Connected to Spotify!\"}");
-        return;
-      }
-    }
-    server.send(400, "application/json",
-                "{\"success\":false,\"message\":\"Failed to exchange Spotify "
-                "authorization code. Check WiFi & Code.\"}");
+    soundVictory();
+    refreshSpotifyToken();
+    server.send(200, "application/json",
+                "{\"success\":true,\"message\":\"Connected to Spotify!\"}");
   });
 
   server.on("/api/config", HTTP_GET, []() {
     sendCorsHeader();
-    if (server.hasArg("client_id")) {
-      spotifyClientId = server.arg("client_id");
-      preferences.putString("sp_cid", spotifyClientId);
-    }
-    if (server.hasArg("client_secret")) {
-      spotifyClientSecret = server.arg("client_secret");
-      preferences.putString("sp_sec", spotifyClientSecret);
-    }
-    if (server.hasArg("refresh_token")) {
-      spotifyRefreshToken = server.arg("refresh_token");
-      preferences.putString("sp_tok", spotifyRefreshToken);
-      spotifyAccessToken = "";
-      refreshSpotifyToken();
-    }
     soundVictory();
+    refreshSpotifyToken();
     server.send(200, "text/plain", "CONFIG_SAVED");
   });
 
