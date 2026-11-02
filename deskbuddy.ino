@@ -322,8 +322,9 @@ void rollOllieDistanceCm(int distanceCm, uint16_t heading) {
   // Non-blocking wait loop with live keypad scanning & instant brake!
   unsigned long startDrive = millis();
   while (millis() - startDrive < durationMs) {
-    handleKeypad();
-    if (currentMode == MODE_COMPANION || lastKeyPressed == '5' || lastKeyPressed == '*' || lastKeyPressed == 'A') {
+    char abortKey = keypad.getKey();
+    if (abortKey == '5' || abortKey == '*' || abortKey == 'A') {
+      lastKeyPressed = abortKey;
       break;
     }
     delay(10);
@@ -1433,26 +1434,51 @@ void processKeyEvent(char key) {
   switch (currentMode) {
   case MODE_COMPANION:
     if (key == '2') {
-      currentExpr = EXPR_SURPRISED;
-      soundPoke();
-    } else if (key == '4') {
-      currentExpr = EXPR_LOOK_LEFT;
-    } else if (key == '6') {
-      currentExpr = EXPR_LOOK_RIGHT;
+      // Gentle forward crawl (FLR drive directly from companion eyes!)
+      currentExpr = EXPR_HAPPY;
+      if (!ollieConnected)
+        connectToOllie();
+      rollOllieDistanceCm(4, 0);
     } else if (key == '8') {
-      currentExpr = EXPR_SLEEPY;
+      // Gentle backward crawl
+      currentExpr = EXPR_SURPRISED;
+      if (!ollieConnected)
+        connectToOllie();
+      rollOllieDistanceCm(4, 180);
+    } else if (key == '4') {
+      // Gentle left turn
+      currentExpr = EXPR_LOOK_LEFT;
+      if (!ollieConnected)
+        connectToOllie();
+      rollOllieDistanceCm(3, 270);
+    } else if (key == '6') {
+      // Gentle right turn
+      currentExpr = EXPR_LOOK_RIGHT;
+      if (!ollieConnected)
+        connectToOllie();
+      rollOllieDistanceCm(3, 90);
     } else if (key == '5') {
+      // Emergency Brake / Stop
       currentExpr = EXPR_NEUTRAL;
-      soundPoke();
+      stopOllie();
+      beep(20);
     } else if (key == '1') {
       // Quick Ollie Spin
       spinTrick();
+      soundVictory();
     } else if (key == '3') {
       // Quick Ollie Color Cycle
       ollieColorIndex = (ollieColorIndex + 1) % TOTAL_OLLIE_COLORS;
       setOllieColor(ollieColorRGB[ollieColorIndex][0],
                     ollieColorRGB[ollieColorIndex][1],
                     ollieColorRGB[ollieColorIndex][2]);
+      soundHappy();
+    } else if (key == '9') {
+      // Safe crawl 8 cm
+      if (!ollieConnected)
+        connectToOllie();
+      rollOllieDistanceCm(8, 0);
+      soundVictory();
     }
     break;
 
@@ -1495,12 +1521,9 @@ void processKeyEvent(char key) {
         switchMode(MODE_BIO);
         break;
       }
-    } else if (key == '*') {
+    } else if (key == '*' || key == 'A') {
       soundChirp();
       switchMode(MODE_COMPANION);
-    } else if (key >= '1' && key <= '8') {
-      selectedMenuItem = key - '1';
-      processKeyEvent('#');
     }
     break;
 
@@ -2383,10 +2406,10 @@ void drawKeypadGuideMenu(Adafruit_SSD1306 &disp) {
   disp.print(F("2/4:UP      8/6:DOWN"));
 
   disp.setCursor(0, 8);
-  disp.print(F("5/#:SELECT APP"));
+  disp.print(F("5/#:SELECT / OPEN"));
 
   disp.setCursor(0, 16);
-  disp.print(F("1-8:QUICK JUMP"));
+  disp.print(F("PRESS 5 TO LAUNCH"));
 
   disp.setCursor(0, 24);
   disp.print(F("*:EXIT TO EYES"));

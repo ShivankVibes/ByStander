@@ -1417,13 +1417,17 @@ body.dark-theme {
   box-shadow: 0 4px 14px rgba(0, 229, 255, 0.3);
 }
 
-.btn-precision-drive.btn-back {
+.btn-precision-drive.btn-back,
+.btn-precision-drive.btn-left,
+.btn-precision-drive.btn-right {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: var(--text-primary);
 }
 
-.btn-precision-drive.btn-back:hover {
+.btn-precision-drive.btn-back:hover,
+.btn-precision-drive.btn-left:hover,
+.btn-precision-drive.btn-right:hover {
   border-color: var(--accent-cyan);
   color: var(--accent-cyan);
 }

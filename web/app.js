@@ -529,6 +529,18 @@ function pressKeypadKey(key) {
   }
 }
 
+function rollOllieCm(cm, heading, dir) {
+  sendOllieCommand({ action: 'move_cm', distance: cm, heading: heading, direction: dir || 'move' });
+}
+
+function sendOllieStop() {
+  sendOllieCommand({ action: 'stop' });
+}
+
+function triggerOllieSpin() {
+  sendOllieCommand({ action: 'spin' });
+}
+
 function handleKeyAction(key) {
   key = String(key).toUpperCase();
 
@@ -558,29 +570,37 @@ function handleKeyAction(key) {
     return;
   }
 
-  // Ollie Direct Pilot
+  // Ollie Direct Pilot (2: Fwd, 8: Rev, 4: Left, 6: Right, 5: Stop, 1: Spin, 3: Color)
   if (key === '2') {
-    rollOllieCm(15, 0);
+    const cm = parseInt(ollieCmInput ? ollieCmInput.value : 10, 10) || 10;
+    rollOllieCm(cm, 0, 'forward');
+    synth.soundChirp();
     return;
   }
   if (key === '8') {
-    rollOllieCm(15, 180);
+    const cm = parseInt(ollieCmInput ? ollieCmInput.value : 10, 10) || 10;
+    rollOllieCm(cm, 180, 'backward');
+    synth.soundChirp();
     return;
   }
   if (key === '4') {
-    rollOllieCm(10, 270);
+    rollOllieCm(5, 270, 'left');
+    synth.soundChirp();
     return;
   }
   if (key === '6') {
-    rollOllieCm(10, 90);
+    rollOllieCm(5, 90, 'right');
+    synth.soundChirp();
     return;
   }
   if (key === '5') {
     sendOllieStop();
+    synth.soundPoke();
     return;
   }
   if (key === '1') {
     triggerOllieSpin();
+    synth.soundVictory();
     return;
   }
   if (key === '3') {
@@ -1044,6 +1064,8 @@ const lblFwdCm = document.getElementById('lbl-fwd-cm');
 const lblBackCm = document.getElementById('lbl-back-cm');
 const btnDriveFwd = document.getElementById('btn-drive-fwd');
 const btnDriveBack = document.getElementById('btn-drive-back');
+const btnDriveLeft = document.getElementById('btn-drive-left');
+const btnDriveRight = document.getElementById('btn-drive-right');
 const btnOllieSpin = document.getElementById('btn-ollie-spin');
 const btnOllieBrake = document.getElementById('btn-ollie-brake');
 
@@ -1136,6 +1158,20 @@ if (btnDriveBack) {
     synth.soundChirp();
     const cm = parseInt(ollieCmInput ? ollieCmInput.value : 20, 10) || 20;
     sendOllieCommand({ action: 'move_cm', distance: cm, heading: 180, direction: 'backward' });
+  });
+}
+
+if (btnDriveLeft) {
+  btnDriveLeft.addEventListener('click', () => {
+    synth.soundChirp();
+    sendOllieCommand({ action: 'move_cm', distance: 5, heading: 270, direction: 'left' });
+  });
+}
+
+if (btnDriveRight) {
+  btnDriveRight.addEventListener('click', () => {
+    synth.soundChirp();
+    sendOllieCommand({ action: 'move_cm', distance: 5, heading: 90, direction: 'right' });
   });
 }
 
